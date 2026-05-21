@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Compass, Bookmark, Home, Activity, Settings, User, LogOut } from "lucide-react";
+import { Compass, Bookmark, Home, Activity, Settings, User, LogOut, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
@@ -12,6 +12,7 @@ const navItems = [
   { name: "My Oasis", href: "/dashboard", icon: Home },
   { name: "Explore", href: "/explore", icon: Compass },
   { name: "Saved", href: "/saved", icon: Bookmark },
+  { name: "Pulse", href: "/pulse", icon: Zap },
   { name: "Signals", href: "/signals", icon: Activity },
   { name: "Settings", href: "/settings", icon: Settings },
 ];

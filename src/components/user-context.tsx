@@ -1,38 +1,47 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
+import type { ResolvedLocation } from "@/lib/locations";
 
-type UserProfile = {
+export type UserProfile = {
   name: string;
   interests: string[];
-  experience: string;
+  location: string;
+  internationalMarkets: string[];
+  resolvedLocation?: ResolvedLocation;
   isLoggedIn: boolean;
+  hasSeenWalkthrough: boolean;
+  /** Bumped when chatbot personalizes feed — triggers UI refresh */
+  feedVersion?: number;
 };
 
 type UserContextType = {
   user: UserProfile;
   setUser: (user: UserProfile) => void;
+  updateUser: (partial: Partial<UserProfile>) => void;
   logout: () => void;
 };
 
 const defaultUser: UserProfile = {
   name: "",
   interests: [],
-  experience: "",
+  location: "",
+  internationalMarkets: [],
   isLoggedIn: false,
+  hasSeenWalkthrough: false,
+  feedVersion: 0,
 };
 
 const UserContext = createContext<UserContextType>({
   user: defaultUser,
   setUser: () => {},
+  updateUser: () => {},
   logout: () => {},
 });
 
 export function UserProvider({ children }: { children: ReactNode }) {
   const [user, setUserState] = useState<UserProfile>(defaultUser);
-  const [loaded, setLoaded] = useState(false);
 
-  // Load from localStorage on mount
   useEffect(() => {
     const stored = localStorage.getItem("oasis-user");
     if (stored) {
@@ -40,23 +49,30 @@ export function UserProvider({ children }: { children: ReactNode }) {
         setUserState(JSON.parse(stored));
       } catch { /* ignore */ }
     }
-    setLoaded(true);
   }, []);
 
-  const setUser = (newUser: UserProfile) => {
+  const setUser = useCallback((newUser: UserProfile) => {
     setUserState(newUser);
     localStorage.setItem("oasis-user", JSON.stringify(newUser));
-  };
+    window.dispatchEvent(new CustomEvent("oasis-user-updated"));
+  }, []);
 
-  const logout = () => {
+  const updateUser = useCallback((partial: Partial<UserProfile>) => {
+    setUserState((prev) => {
+      const next = { ...prev, ...partial, feedVersion: (prev.feedVersion || 0) + 1 };
+      localStorage.setItem("oasis-user", JSON.stringify(next));
+      window.dispatchEvent(new CustomEvent("oasis-user-updated"));
+      return next;
+    });
+  }, []);
+
+  const logout = useCallback(() => {
     setUserState(defaultUser);
     localStorage.removeItem("oasis-user");
-  };
-
-  if (!loaded) return null;
+  }, []);
 
   return (
-    <UserContext.Provider value={{ user, setUser, logout }}>
+    <UserContext.Provider value={{ user, setUser, updateUser, logout }}>
       {children}
     </UserContext.Provider>
   );

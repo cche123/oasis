@@ -3,6 +3,7 @@
 import { categories, mockThemes } from "@/lib/data";
 import { Search, Filter } from "lucide-react";
 import Link from "next/link";
+import { XVoices } from "@/components/x-voices";
 import { motion, Variants } from "framer-motion";
 
 const containerVars: Variants = {
@@ -109,6 +110,10 @@ export default function ExplorePage() {
           </motion.div>
         ))}
       </motion.div>
+
+      <div className="mt-20">
+        <XVoices title="X Voices by Topic" showTopicTabs defaultTopic="vc" />
+      </div>
     </div>
   );
 }

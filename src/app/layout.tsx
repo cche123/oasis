@@ -16,7 +16,7 @@ const playfair = Playfair_Display({
 });
 
 export const metadata: Metadata = {
-  title: "Oasis | Market Discovery",
+  title: "Oasis",
   description: "Turn curiosity into market understanding.",
 };
 
