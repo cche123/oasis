@@ -3,6 +3,7 @@ import { OASIS_UPDATE_MARKER, type OasisFeedUpdate } from "@/lib/chat-types";
 import { generateGeminiReply, isGeminiConfigured } from "@/lib/gemini";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 function parseFeedUpdate(text: string): { cleanText: string; updates?: OasisFeedUpdate } {
   const match = OASIS_UPDATE_MARKER.exec(text);
@@ -49,9 +50,12 @@ function buildSystemInstruction(userContext?: {
       : "";
 
   return `
-You are Oasis, an institutional-grade AI assistant embedded in a market intelligence platform. Behave like ChatGPT or Gemini: helpful, conversational, and analytically sharp.
+You are Oasis, an institutional-grade AI assistant embedded in a market intelligence platform. Respond like ChatGPT or Google Gemini: natural, helpful, conversational, and sharp on markets.
 
-PERSONALITY: Authoritative, concise, insightful. Use headers or bullets for complex answers.
+RULES:
+- Answer the user's actual question directly (greetings get a friendly greeting back).
+- Use markdown bullets or short headers when helpful.
+- Be concise unless they ask for depth.
 
 CONTEXT:
 - Date: ${today}
@@ -60,90 +64,72 @@ ${locationContext}
 ${interestsContext}
 ${marketsContext}
 
-PERSONALIZATION: When the user asks to add topics, change their feed, focus on regions/markets, or personalize content (e.g. "add AI roll-ups", "show Japanese market news", "I'm in London now"), you MUST append this exact block at the END of your response (after your natural reply):
-<!--OASIS_UPDATE:{"addInterests":["topic1"],"addMarkets":["Japan"],"location":"London"}-->
-Only include fields that should change. Use addInterests for new topics. Valid markets: USA, India, China, Japan, Europe, Singapore, Emerging Markets, Middle East.
-
-Always ground answers in real market knowledge. Be honest about uncertainty on very recent events.
+PERSONALIZATION: If the user asks to add topics, change their feed, or focus regions (e.g. "add AI roll-ups", "focus on Japan"), append at the END of your reply:
+<!--OASIS_UPDATE:{"addInterests":["topic"],"addMarkets":["Japan"],"location":"London"}-->
+Only include fields that change. Valid markets: USA, India, China, Japan, Europe, Singapore, Emerging Markets, Middle East.
   `.trim();
 }
 
 export async function POST(req: Request) {
+  let body: { messages?: unknown[]; userContext?: Record<string, unknown> } = {};
+
   try {
-    const { messages, userContext } = await req.json();
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
 
-    const chatMessages = (messages ?? []).filter(
-      (m: { role?: string; content?: string }) => m?.content?.trim()
+  const chatMessages = (body.messages ?? []).filter(
+    (m): m is { role: string; content: string } =>
+      typeof m === "object" &&
+      m !== null &&
+      "content" in m &&
+      typeof (m as { content: unknown }).content === "string" &&
+      Boolean((m as { content: string }).content.trim())
+  );
+
+  if (!isGeminiConfigured()) {
+    return NextResponse.json(
+      {
+        error: "AI_NOT_CONFIGURED",
+        text: "Oasis AI isn't connected on this server. Add GEMINI_API_KEY to .env.local (local) or your host's environment variables (Vercel → Settings → Environment Variables), then restart the server.",
+        ai: false,
+      },
+      { status: 503 }
     );
+  }
 
-    const lastUserMsg =
-      [...chatMessages]
-        .reverse()
-        .find((m: { role: string }) => m.role === "user")?.content || "";
-
-    if (!isGeminiConfigured()) {
-      return NextResponse.json(getMockReply(lastUserMsg, userContext));
-    }
-
-    const systemInstruction = buildSystemInstruction(userContext);
+  try {
+    const systemInstruction = buildSystemInstruction(
+      body.userContext as Parameters<typeof buildSystemInstruction>[0]
+    );
     const rawText = await generateGeminiReply(systemInstruction, chatMessages);
     const { cleanText, updates } = parseFeedUpdate(rawText);
 
-    return NextResponse.json({ text: cleanText, updates, ai: true });
+    return NextResponse.json({
+      text: cleanText || "I couldn't generate a response. Please try again.",
+      updates,
+      ai: true,
+    });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Unknown error";
     console.error("CHAT API ERROR:", message);
     return NextResponse.json(
       {
-        error: "Failed to generate response.",
+        error: "AI_FAILED",
+        text: `I hit an error talking to Gemini: ${message}. Please try again.`,
         details: message,
+        ai: false,
       },
       { status: 500 }
     );
   }
 }
 
-/** Lightweight check for ops — does not expose the key */
 export async function GET() {
+  const configured = isGeminiConfigured();
   return NextResponse.json({
-    configured: isGeminiConfigured(),
-    status: isGeminiConfigured() ? "ready" : "missing_key",
+    configured,
+    status: configured ? "ready" : "missing_key",
   });
-}
-
-function getMockReply(
-  userMsg: string,
-  userContext?: {
-    name?: string;
-    interests?: string[];
-    location?: string;
-  }
-): { text: string; updates?: OasisFeedUpdate; ai?: boolean } {
-  const lower = userMsg.toLowerCase();
-  const updates: OasisFeedUpdate = {};
-
-  if (
-    lower.includes("add") ||
-    lower.includes("include") ||
-    lower.includes("personalize") ||
-    lower.includes("focus on")
-  ) {
-    if (lower.includes("ai roll") || lower.includes("roll-up") || lower.includes("rollup")) {
-      updates.addInterests = ["AI-enabled roll-ups"];
-    }
-    if (lower.includes("japan")) {
-      updates.addInterests = [...(updates.addInterests || []), "Japan Markets"];
-      updates.addMarkets = ["Japan"];
-    }
-    if (lower.includes("japanese market")) {
-      updates.addMarkets = ["Japan"];
-    }
-  }
-
-  const hasUpdates = Object.keys(updates).length > 0;
-  const text = hasUpdates
-    ? `Done — I've updated your feed${userContext?.name ? `, ${userContext.name}` : ""}. Your dashboard and signals will refresh with the new topics.`
-    : `I'm Oasis${userContext?.name ? `, ${userContext.name}'s` : ""} intelligence assistant. Ask me about markets, deals, or say "add AI roll-ups to my feed" to personalize in real time. Full AI is temporarily unavailable — your host needs GEMINI_API_KEY in the server environment.`;
-
-  return hasUpdates ? { text, updates, ai: false } : { text, ai: false };
 }

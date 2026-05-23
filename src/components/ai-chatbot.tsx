@@ -79,7 +79,7 @@ export function AiChatbot() {
       id: "init",
       role: "ai",
       content:
-        "I am Oasis. Ask me anything about markets — or tell me to personalize your feed (e.g. \"add AI roll-ups\" or \"focus on Japanese markets\").",
+        "I'm Oasis — your market intelligence copilot. Ask me anything about stocks, deals, macro, or tell me to personalize your feed.",
     },
   ]);
 
@@ -114,15 +114,6 @@ export function AiChatbot() {
 
       const data = await response.json();
 
-      if (!response.ok) {
-        const detail = data.details || data.error || "Request failed";
-        throw new Error(detail);
-      }
-
-      if (!data.text) {
-        throw new Error("Empty response from AI");
-      }
-
       if (data.updates) {
         const partial = applyFeedUpdates(user, data.updates as OasisFeedUpdate);
         if (Object.keys(partial).length > 0) {
@@ -130,10 +121,18 @@ export function AiChatbot() {
         }
       }
 
+      if (!response.ok && !data.text) {
+        throw new Error(data.details || data.error || "Request failed");
+      }
+
+      if (!data.text?.trim()) {
+        throw new Error("Empty response from AI");
+      }
+
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: "ai",
-        content: data.text || "No response generated.",
+        content: data.text.trim(),
       };
 
       setMessages((prev) => [...prev, aiMessage]);

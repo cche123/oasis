@@ -1,16 +1,55 @@
+import { readFileSync, existsSync } from "node:fs";
+import { join } from "node:path";
 import { GoogleGenerativeAI, type Content } from "@google/generative-ai";
 
 const MODELS = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"] as const;
 
+let resolvedKey: string | undefined;
+
+/** Resolve API key from process.env, then .env.local (dev), then .env */
+function resolveGeminiApiKey(): string | undefined {
+  if (resolvedKey) return resolvedKey;
+
+  const fromEnv = process.env.GEMINI_API_KEY?.trim();
+  if (fromEnv) {
+    resolvedKey = fromEnv;
+    return resolvedKey;
+  }
+
+  for (const filename of [".env.local", ".env"]) {
+    try {
+      const envPath = join(process.cwd(), filename);
+      if (!existsSync(envPath)) continue;
+      const text = readFileSync(envPath, "utf8");
+      for (const line of text.split("\n")) {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith("#")) continue;
+        const eq = trimmed.indexOf("=");
+        if (eq === -1) continue;
+        const key = trimmed.slice(0, eq).trim();
+        const value = trimmed.slice(eq + 1).trim().replace(/^["']|["']$/g, "");
+        if (key === "GEMINI_API_KEY" && value) {
+          resolvedKey = value;
+          process.env.GEMINI_API_KEY = value;
+          return resolvedKey;
+        }
+      }
+    } catch {
+      // continue
+    }
+  }
+
+  return undefined;
+}
+
 export function getGeminiApiKey(): string | undefined {
-  return process.env.GEMINI_API_KEY?.trim() || undefined;
+  return resolveGeminiApiKey();
 }
 
 export function isGeminiConfigured(): boolean {
-  return Boolean(getGeminiApiKey());
+  return Boolean(resolveGeminiApiKey());
 }
 
-/** Gemini requires alternating user/model turns; history must start with user */
 export function normalizeChatHistory(
   messages: Array<{ role: string; content: string }>
 ): Content[] {
@@ -51,7 +90,7 @@ export async function generateGeminiReply(
   systemInstruction: string,
   messages: Array<{ role: string; content: string }>
 ): Promise<string> {
-  const apiKey = getGeminiApiKey();
+  const apiKey = resolveGeminiApiKey();
   if (!apiKey) {
     throw new Error("GEMINI_NOT_CONFIGURED");
   }
