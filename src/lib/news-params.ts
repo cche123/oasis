@@ -13,8 +13,11 @@ export function buildNewsQueryParams(opts: {
   if (opts.location) params.set("location", opts.location);
   if (opts.resolvedLocation?.valid) {
     params.set("country", opts.resolvedLocation.country);
+    params.set("countryCode", opts.resolvedLocation.countryCode);
     params.set("region", opts.resolvedLocation.newsRegion);
     params.set("lang", opts.resolvedLocation.newsLang);
+    params.set("displayName", opts.resolvedLocation.displayName);
+    if (opts.resolvedLocation.state) params.set("state", opts.resolvedLocation.state);
   }
   if (opts.markets?.length) {
     params.set("markets", opts.markets.join("|"));

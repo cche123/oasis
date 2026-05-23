@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { GLOBAL_NEWS_FEEDS, type FeedConfig } from "@/lib/news-feeds";
+import { getRegionalNewsFeeds } from "@/lib/regional-news";
+import type { ResolvedLocation } from "@/lib/locations";
 
 type RSSSignal = {
   id: string;
@@ -11,13 +13,41 @@ type RSSSignal = {
   summary: string;
 };
 
-const MARKET_QUERIES: Record<string, string> = {
-  USA: "US stock market economy",
-  Japan: "Japan markets economy Nikkei",
-  Europe: "European markets economy ECB",
-  "Emerging Markets": "emerging markets economy",
-  "Middle East": "Middle East markets oil economy",
-  China: "China markets economy trade",
+const MARKET_FEEDS: Record<string, FeedConfig[]> = {
+  USA: [
+    googleNewsFeed("US stock market economy", "US", "en-US", "USA"),
+    googleNewsFeed("Wall Street markets Federal Reserve", "US", "en-US", "USA"),
+  ],
+  India: [
+    googleNewsFeed("India markets economy startup funding", "IN", "en-IN", "India"),
+    googleNewsFeed("India sensex nifty business", "IN", "en-IN", "India"),
+    { url: "https://economictimes.indiatimes.com/rssfeedsdefault.cms", source: "Economic Times", category: "India" },
+    { url: "https://www.livemint.com/rss/companies", source: "Mint", category: "India" },
+  ],
+  China: [
+    googleNewsFeed("中国 经济 财经 市场", "CN", "zh-CN", "China"),
+    googleNewsFeed("China economy trade markets", "CN", "zh-CN", "China"),
+  ],
+  Japan: [
+    googleNewsFeed("日本 経済 市場", "JP", "ja", "Japan"),
+    googleNewsFeed("Japan Nikkei markets economy", "JP", "ja", "Japan"),
+  ],
+  Europe: [
+    googleNewsFeed("European markets economy ECB", "GB", "en-GB", "Europe"),
+    googleNewsFeed("EU economy finance markets", "DE", "de", "Europe"),
+  ],
+  Singapore: [
+    googleNewsFeed("Singapore business economy markets", "SG", "en-SG", "Singapore"),
+    { url: "https://www.straitstimes.com/news/business/rss.xml", source: "Straits Times", category: "Singapore" },
+  ],
+  "Emerging Markets": [
+    googleNewsFeed("emerging markets economy finance", "US", "en-US", "Emerging Markets"),
+    googleNewsFeed("EM stocks frontier markets", "US", "en-US", "Emerging Markets"),
+  ],
+  "Middle East": [
+    googleNewsFeed("Middle East markets oil economy", "AE", "en-AE", "Middle East"),
+    googleNewsFeed("Gulf business finance energy", "AE", "en-AE", "Middle East"),
+  ],
 };
 
 function googleNewsFeed(
@@ -64,9 +94,9 @@ function buildPersonalizedFeeds(opts: {
   }
 
   for (const market of opts.markets) {
-    const query = MARKET_QUERIES[market];
-    if (query) {
-      feeds.push(googleNewsFeed(query, region || "US", lang || "en-US", market));
+    const marketFeeds = MARKET_FEEDS[market];
+    if (marketFeeds) {
+      feeds.push(...marketFeeds);
     }
   }
 
@@ -204,6 +234,9 @@ export async function GET(req: Request) {
   const interestsParam = searchParams.get("interests");
   const location = searchParams.get("location") || "";
   const country = searchParams.get("country") || "";
+  const countryCode = searchParams.get("countryCode") || "";
+  const displayName = searchParams.get("displayName") || location;
+  const state = searchParams.get("state") || "";
   const region = searchParams.get("region") || "US";
   const lang = searchParams.get("lang") || "en-US";
   const marketsParam = searchParams.get("markets");
@@ -213,16 +246,32 @@ export async function GET(req: Request) {
     : [];
   const markets = marketsParam ? marketsParam.split("|").filter(Boolean) : [];
 
+  const resolved: ResolvedLocation | undefined = countryCode
+    ? {
+        valid: true,
+        input: location,
+        city: displayName.split(",")[0]?.trim(),
+        state: state || undefined,
+        country,
+        countryCode,
+        displayName,
+        newsRegion: region,
+        newsLang: lang,
+      }
+    : undefined;
+
+  const regionalFeeds = getRegionalNewsFeeds(resolved);
+
   const personalizedFeeds = buildPersonalizedFeeds({
     interests,
-    location,
+    location: displayName || location,
     country,
     region,
     lang,
     markets,
   });
 
-  const allFeeds = [...GLOBAL_NEWS_FEEDS, ...personalizedFeeds];
+  const allFeeds = [...regionalFeeds, ...personalizedFeeds, ...GLOBAL_NEWS_FEEDS];
   const uniqueFeeds = allFeeds.filter(
     (feed, idx, arr) => arr.findIndex((f) => f.url === feed.url) === idx
   );

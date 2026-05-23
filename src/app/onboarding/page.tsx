@@ -310,13 +310,10 @@ function OnboardingContent() {
                 transition={{ duration: 0.4 }}
                 className="space-y-8"
               >
-                <div className="text-center space-y-3">
+                <div className="text-center">
                   <h1 className="text-4xl md:text-5xl font-serif tracking-tight leading-tight">
                     Where are you focused?
                   </h1>
-                  <p className="text-white/40 text-sm max-w-sm mx-auto">
-                    City or country — we&apos;ll personalize your regional briefing. Tell Oasis AI anytime to refine further.
-                  </p>
                 </div>
                 <div className="space-y-6 max-w-sm mx-auto">
                   <div className="space-y-3">
@@ -327,7 +324,7 @@ function OnboardingContent() {
                       type="text"
                       value={location}
                       onChange={(e) => setLocation(e.target.value)}
-                      placeholder="e.g. London, Tokyo, Nairobi, Stockholm..."
+                      placeholder="e.g. Troy, Michigan · Gujarat · Singapore · Kyoto"
                       className="w-full bg-transparent border-b border-white/20 focus:border-white py-3 text-lg font-light tracking-wide focus:outline-none transition-colors placeholder:text-white/20"
                     />
                     {locationWarning && location.trim().length >= 2 && (
@@ -340,7 +337,7 @@ function OnboardingContent() {
                     )}
                     {resolved.valid && location.trim().length >= 2 && (
                       <p className="text-xs text-emerald-400/80">
-                        ✓ Personalized for {resolved.displayName}
+                        ✓ {resolved.displayName} — regional news enabled
                       </p>
                     )}
                   </div>
