@@ -29,7 +29,7 @@ export default function PrivateMarketsPage() {
   const fetchDeals = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/private-markets");
+      const res = await fetch("/api/private-markets", { cache: "no-store" });
       if (!res.ok) throw new Error("fetch failed");
       const data = await res.json();
       setDeals(data.deals || []);
@@ -42,6 +42,8 @@ export default function PrivateMarketsPage() {
 
   useEffect(() => {
     fetchDeals();
+    const interval = setInterval(fetchDeals, 3 * 60_000);
+    return () => clearInterval(interval);
   }, [fetchDeals]);
 
   const filtered =

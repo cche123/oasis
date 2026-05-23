@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { GLOBAL_NEWS_FEEDS, type FeedConfig } from "@/lib/news-feeds";
 import { getRegionalNewsFeeds } from "@/lib/regional-news";
 import type { ResolvedLocation } from "@/lib/locations";
+import { formatPublishedAt, parsePubDate, toIsoOrNull } from "@/lib/publish-time";
+
+export const dynamic = "force-dynamic";
 
 type RSSSignal = {
   id: string;
@@ -9,6 +12,7 @@ type RSSSignal = {
   source: string;
   sourceUrl: string;
   date: string;
+  publishedAt?: string;
   category: string;
   summary: string;
 };
@@ -150,25 +154,6 @@ function cleanHTML(str: string): string {
     .trim();
 }
 
-function formatDate(dateStr: string): string {
-  if (!dateStr) return "Today";
-  try {
-    const date = new Date(dateStr);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-    if (diffHours < 1) return "Just now";
-    if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? "s" : ""} ago`;
-    if (diffDays === 1) return "Yesterday";
-    if (diffDays < 7) return `${diffDays} days ago`;
-    return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-  } catch {
-    return "Today";
-  }
-}
-
 function isValidNewsUrl(url: string): boolean {
   if (!url || url.length < 10) return false;
   try {
@@ -186,7 +171,8 @@ async function fetchFeed(feed: FeedConfig): Promise<RSSSignal[]> {
         "User-Agent": "Mozilla/5.0 (compatible; OasisBot/1.0)",
         Accept: "application/rss+xml, application/xml, text/xml, */*",
       },
-      next: { revalidate: 300 },
+      next: { revalidate: 90 },
+      cache: "no-store",
     });
 
     if (!res.ok) return [];
@@ -197,17 +183,21 @@ async function fetchFeed(feed: FeedConfig): Promise<RSSSignal[]> {
     return items
       .filter((item) => isValidNewsUrl(item.link))
       .slice(0, 4)
-      .map((item) => ({
-        id: crypto.randomUUID(),
-        title: item.title,
-        source: feed.source,
-        sourceUrl: item.link,
-        date: formatDate(item.pubDate),
-        category: feed.category,
-        summary:
-          item.description.slice(0, 200) +
-          (item.description.length > 200 ? "..." : ""),
-      }));
+      .map((item) => {
+        const published = parsePubDate(item.pubDate);
+        return {
+          id: crypto.randomUUID(),
+          title: item.title,
+          source: feed.source,
+          sourceUrl: item.link,
+          date: formatPublishedAt(published) || "—",
+          publishedAt: toIsoOrNull(published),
+          category: feed.category,
+          summary:
+            item.description.slice(0, 200) +
+            (item.description.length > 200 ? "..." : ""),
+        };
+      });
   } catch {
     return [];
   }
@@ -294,10 +284,9 @@ export async function GET(req: Request) {
   }
 
   signals.sort((a, b) => {
-    const order = ["Just now", "hour", "Yesterday"];
-    const aIdx = order.findIndex((o) => a.date.includes(o));
-    const bIdx = order.findIndex((o) => b.date.includes(o));
-    return (aIdx === -1 ? 99 : aIdx) - (bIdx === -1 ? 99 : bIdx);
+    const aT = a.publishedAt ? new Date(a.publishedAt).getTime() : 0;
+    const bT = b.publishedAt ? new Date(b.publishedAt).getTime() : 0;
+    return bT - aT;
   });
 
   const seen = new Set<string>();

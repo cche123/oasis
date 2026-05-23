@@ -19,6 +19,7 @@ type NewsItem = {
   source: string;
   category: string;
   date?: string;
+  publishedAt?: string;
 };
 
 function inferCategory(text: string, fallback: string): string {
@@ -43,7 +44,11 @@ function inferTier(text: string, heat: number): NarrativeTier {
 
 function scoreHeat(item: NewsItem, index: number): number {
   let h = 0.5;
-  if (item.date?.includes("Just now") || item.date?.includes("hour")) h += 0.25;
+  if (item.publishedAt) {
+    const ageH = (Date.now() - new Date(item.publishedAt).getTime()) / 3600000;
+    if (ageH < 6) h += 0.25;
+    else if (ageH < 24) h += 0.15;
+  }
   if (item.source === "Wall Street Journal" || item.source === "Reuters") h += 0.1;
   if (item.title.length > 50) h += 0.05;
   h -= index * 0.02;

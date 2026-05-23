@@ -1,4 +1,7 @@
 import { NextResponse } from "next/server";
+import { formatPublishedAt, parsePubDate, toIsoOrNull } from "@/lib/publish-time";
+
+export const dynamic = "force-dynamic";
 
 type DealSignal = {
   id: string;
@@ -6,6 +9,7 @@ type DealSignal = {
   source: string;
   sourceUrl: string;
   date: string;
+  publishedAt?: string;
   category: string;
   summary: string;
   company?: string;
@@ -80,19 +84,6 @@ function clean(s: string) {
   return s.replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").trim();
 }
 
-function formatDate(d: string) {
-  if (!d) return "Today";
-  try {
-    const diff = Date.now() - new Date(d).getTime();
-    const h = Math.floor(diff / 3600000);
-    if (h < 1) return "Just now";
-    if (h < 24) return `${h}h ago`;
-    return new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric" });
-  } catch {
-    return "Today";
-  }
-}
-
 function extractCompany(title: string): string | undefined {
   const m = title.match(/^([A-Z][A-Za-z0-9&.]+)\s+(raises|raised|lands|secures|closes)/i);
   return m?.[1];
@@ -103,23 +94,28 @@ export async function GET() {
     VC_FEEDS.map(async (feed) => {
       const res = await fetch(feed.url, {
         headers: { "User-Agent": "Mozilla/5.0 (compatible; Oasis/1.0)", Accept: "application/rss+xml" },
-        next: { revalidate: 300 },
+        next: { revalidate: 90 },
+        cache: "no-store",
       });
       if (!res.ok) return [];
       const xml = await res.text();
       return parseXMLItems(xml)
         .filter((i) => i.link.startsWith("http"))
         .slice(0, 5)
-        .map((item) => ({
-          id: crypto.randomUUID(),
-          title: item.title,
-          source: feed.source,
-          sourceUrl: item.link,
-          date: formatDate(item.pubDate),
-          category: feed.category,
-          summary: item.description.slice(0, 220),
-          company: extractCompany(item.title),
-        }));
+        .map((item) => {
+          const published = parsePubDate(item.pubDate);
+          return {
+            id: crypto.randomUUID(),
+            title: item.title,
+            source: feed.source,
+            sourceUrl: item.link,
+            date: formatPublishedAt(published) || "—",
+            publishedAt: toIsoOrNull(published),
+            category: feed.category,
+            summary: item.description.slice(0, 220),
+            company: extractCompany(item.title),
+          };
+        });
     })
   );
 
@@ -137,10 +133,9 @@ export async function GET() {
       return true;
     })
     .sort((a, b) => {
-      const order = ["Just now", "h ago", "Today"];
-      const ai = order.findIndex((o) => a.date.includes(o));
-      const bi = order.findIndex((o) => b.date.includes(o));
-      return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+      const aT = a.publishedAt ? new Date(a.publishedAt).getTime() : 0;
+      const bT = b.publishedAt ? new Date(b.publishedAt).getTime() : 0;
+      return bT - aT;
     })
     .slice(0, 40);
 

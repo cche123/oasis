@@ -51,7 +51,7 @@ export default function SignalsPage() {
         activeCategory === "All Signals"
           ? ""
           : `${base ? sep : "?"}category=${encodeURIComponent(activeCategory)}`;
-      const res = await fetch(`/api/news${base}${categoryParam}`);
+      const res = await fetch(`/api/news${base}${categoryParam}`, { cache: "no-store" });
       if (!res.ok) throw new Error("Fetch failed");
       const data = await res.json();
       if (data.signals) {
@@ -74,6 +74,8 @@ export default function SignalsPage() {
   useEffect(() => {
     setLoading(true);
     fetchSignals();
+    const interval = setInterval(fetchSignals, 3 * 60_000);
+    return () => clearInterval(interval);
   }, [fetchSignals]);
 
   return (

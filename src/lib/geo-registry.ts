@@ -5,6 +5,7 @@
  */
 
 import { US_STATES } from "./us-states";
+import { COUNTRY_ALIASES } from "./country-aliases";
 
 export type GeoEntry = {
   city: string;
@@ -183,6 +184,46 @@ function tryParseIndiaLocation(key: string): GeoEntry | null {
   return null;
 }
 
+function tryParseIntlCityCountry(key: string): GeoEntry | null {
+  const parts = key.split(",").map((p) => p.trim()).filter(Boolean);
+  if (parts.length >= 2) {
+    const countryToken = parts[parts.length - 1].toLowerCase();
+    const meta = COUNTRY_ALIASES[countryToken];
+    if (!meta) return null;
+    const city = parts.slice(0, -1).join(", ");
+    if (city.length < 2) return null;
+    return {
+      city: titleCase(city),
+      country: meta.country,
+      countryCode: meta.countryCode,
+      newsRegion: meta.newsRegion,
+      newsLang: meta.newsLang,
+      keys: [],
+    };
+  }
+
+  const words = key.split(/\s+/).filter(Boolean);
+  if (words.length >= 2) {
+    const countryToken = words[words.length - 1].toLowerCase();
+    const meta = COUNTRY_ALIASES[countryToken];
+    if (meta) {
+      const city = words.slice(0, -1).join(" ");
+      if (city.length >= 2) {
+        return {
+          city: titleCase(city),
+          country: meta.country,
+          countryCode: meta.countryCode,
+          newsRegion: meta.newsRegion,
+          newsLang: meta.newsLang,
+          keys: [],
+        };
+      }
+    }
+  }
+
+  return null;
+}
+
 function us(
   city: string,
   state: string,
@@ -272,6 +313,68 @@ export const GEO_ENTRIES: GeoEntry[] = [
   us("San Diego", "California", { aliases: ["san diego ca"] }),
   us("Sacramento", "California", { aliases: ["sacramento ca"] }),
   us("Oakland", "California", { aliases: ["oakland ca"] }),
+  us("Walnut Creek", "California", { aliases: ["walnut creek ca", "walnut creek california"] }),
+  us("Berkeley", "California", { aliases: ["berkeley ca"] }),
+  us("Fremont", "California", { aliases: ["fremont ca"] }),
+  us("Hayward", "California", { aliases: ["hayward ca"] }),
+  us("Concord", "California", { aliases: ["concord ca"] }),
+  us("Danville", "California", { aliases: ["danville ca"] }),
+  us("San Ramon", "California", { aliases: ["san ramon ca"] }),
+  us("Pleasanton", "California", { aliases: ["pleasanton ca"] }),
+  us("Livermore", "California", { aliases: ["livermore ca"] }),
+  us("Lafayette", "California", { aliases: ["lafayette ca"] }),
+  us("Orinda", "California", { aliases: ["orinda ca"] }),
+  us("Moraga", "California", { aliases: ["moraga ca"] }),
+  us("Alameda", "California", { aliases: ["alameda ca"] }),
+  us("San Leandro", "California", { aliases: ["san leandro ca"] }),
+  us("Richmond", "California", { noBare: true, aliases: ["richmond ca", "richmond california"] }),
+  us("Vallejo", "California", { aliases: ["vallejo ca"] }),
+  us("Napa", "California", { aliases: ["napa ca"] }),
+  us("Santa Rosa", "California", { aliases: ["santa rosa ca"] }),
+  us("Petaluma", "California", { aliases: ["petaluma ca"] }),
+  us("San Rafael", "California", { aliases: ["san rafael ca"] }),
+  us("Mill Valley", "California", { aliases: ["mill valley ca"] }),
+  us("Sausalito", "California", { aliases: ["sausalito ca"] }),
+  us("Tiburon", "California", { aliases: ["tiburon ca"] }),
+  us("Daly City", "California", { aliases: ["daly city ca"] }),
+  us("San Mateo", "California", { aliases: ["san mateo ca"] }),
+  us("Burlingame", "California", { aliases: ["burlingame ca"] }),
+  us("San Bruno", "California", { aliases: ["san bruno ca"] }),
+  us("South San Francisco", "California", { aliases: ["south san francisco ca"] }),
+  us("Foster City", "California", { aliases: ["foster city ca"] }),
+  us("Belmont", "California", { aliases: ["belmont ca"] }),
+  us("Los Gatos", "California", { aliases: ["los gatos ca"] }),
+  us("Campbell", "California", { aliases: ["campbell ca"] }),
+  us("Morgan Hill", "California", { aliases: ["morgan hill ca"] }),
+  us("Gilroy", "California", { aliases: ["gilroy ca"] }),
+  us("Santa Cruz", "California", { aliases: ["santa cruz ca"] }),
+  us("Monterey", "California", { aliases: ["monterey ca"] }),
+  us("Carmel", "California", { aliases: ["carmel ca"] }),
+  us("Beverly Hills", "California", { aliases: ["beverly hills ca"] }),
+  us("Burbank", "California", { aliases: ["burbank ca"] }),
+  us("Glendale", "California", { aliases: ["glendale ca"] }),
+  us("Long Beach", "California", { aliases: ["long beach ca"] }),
+  us("Anaheim", "California", { aliases: ["anaheim ca"] }),
+  us("Newport Beach", "California", { aliases: ["newport beach ca"] }),
+  us("Laguna Beach", "California", { aliases: ["laguna beach ca"] }),
+  us("Santa Barbara", "California", { aliases: ["santa barbara ca"] }),
+  us("Thousand Oaks", "California", { aliases: ["thousand oaks ca"] }),
+  us("Ventura", "California", { aliases: ["ventura ca"] }),
+  us("Riverside", "California", { aliases: ["riverside ca"] }),
+  us("Ontario", "California", { aliases: ["ontario ca"] }),
+  us("Rancho Cucamonga", "California", { aliases: ["rancho cucamonga ca"] }),
+  us("Stockton", "California", { aliases: ["stockton ca"] }),
+  us("Modesto", "California", { aliases: ["modesto ca"] }),
+  us("Fresno", "California", { aliases: ["fresno ca"] }),
+  us("Bakersfield", "California", { aliases: ["bakersfield ca"] }),
+  us("Chula Vista", "California", { aliases: ["chula vista ca"] }),
+  us("Carlsbad", "California", { aliases: ["carlsbad ca"] }),
+  us("La Jolla", "California", { aliases: ["la jolla ca"] }),
+  us("Del Mar", "California", { aliases: ["del mar ca"] }),
+  us("Encinitas", "California", { aliases: ["encinitas ca"] }),
+  us("Woodside", "California", { aliases: ["woodside ca"] }),
+  us("Hillsborough", "California", { aliases: ["hillsborough ca"] }),
+  us("Piedmont", "California", { aliases: ["piedmont ca"] }),
   us("Chicago", "Illinois", { aliases: ["chicago il"] }),
   us("Austin", "Texas", { aliases: ["austin tx"] }),
   us("Houston", "Texas", { aliases: ["houston tx"] }),
@@ -340,6 +443,19 @@ export const GEO_ENTRIES: GeoEntry[] = [
   us("Tucson", "Arizona", { aliases: ["tucson az"] }),
   us("Scottsdale", "Arizona", { aliases: ["scottsdale az"] }),
   us("Tempe", "Arizona", { aliases: ["tempe az"] }),
+  us("Plano", "Texas", { aliases: ["plano tx"] }),
+  us("Frisco", "Texas", { aliases: ["frisco tx"] }),
+  us("The Woodlands", "Texas", { aliases: ["the woodlands tx", "woodlands tx"] }),
+  us("Naperville", "Illinois", { aliases: ["naperville il"] }),
+  us("Evanston", "Illinois", { aliases: ["evanston il"] }),
+  us("Scarsdale", "New York", { aliases: ["scarsdale ny"] }),
+  us("White Plains", "New York", { aliases: ["white plains ny"] }),
+  us("Westchester", "New York", { aliases: ["westchester ny"] }),
+  us("Bethesda", "Maryland", { aliases: ["bethesda md"] }),
+  us("Arlington", "Virginia", { noBare: true, aliases: ["arlington va", "arlington virginia"] }),
+  us("Alexandria", "Virginia", { aliases: ["alexandria va"] }),
+  us("McLean", "Virginia", { aliases: ["mclean va"] }),
+  us("Reston", "Virginia", { aliases: ["reston va"] }),
   us("Colorado Springs", "Colorado", { aliases: ["colorado springs co"] }),
   us("Boulder", "Colorado", { aliases: ["boulder co"] }),
 
@@ -491,7 +607,9 @@ export const GEO_ENTRIES: GeoEntry[] = [
   countryOnly("Saudi Arabia", "SA", "SA", "ar"),
   intl("Riyadh", "Saudi Arabia", "SA", "SA", "ar"),
   countryOnly("Israel", "IL", "IL", "he"),
-  intl("Tel Aviv", "Israel", "IL", "IL", "he", "tel aviv"),
+  intl("Tel Aviv", "Israel", "IL", "IL", "he", undefined, "tel a viv", "tel a viv israel", "tel aviv israel"),
+  intl("Jerusalem", "Israel", "IL", "IL", "he"),
+  intl("Haifa", "Israel", "IL", "IL", "he"),
   countryOnly("Kenya", "KE", "KE", "en-KE"),
   intl("Nairobi", "Kenya", "KE", "KE", "en-KE"),
   intl("Mombasa", "Kenya", "KE", "KE", "en-KE"),
@@ -542,11 +660,11 @@ export function formatDisplayName(entry: GeoEntry): string {
   if (entry.countryCode === "US" && entry.state && entry.city !== entry.state) {
     return `${entry.city}, ${entry.state}`;
   }
-  if (entry.region && entry.city !== entry.region) {
-    return `${entry.city}, ${entry.region}`;
-  }
   if (entry.region && entry.city === entry.region) {
     return `${entry.region}, ${entry.country}`;
+  }
+  if (entry.region && entry.city !== entry.region && entry.countryCode === "IN") {
+    return `${entry.city}, ${entry.country}`;
   }
   if (entry.city && entry.country && entry.city !== entry.country) {
     return `${entry.city}, ${entry.country}`;
@@ -585,14 +703,18 @@ export function resolveGeoEntry(input: string): {
       const entry = LOOKUP.get(cityState)!;
       return { valid: true, entry, displayName: formatDisplayName(entry) };
     }
-    if (US_STATE_NAMES.has(second)) {
-      const stateName = resolveUsStateToken(second) || titleCase(second);
-      const synthetic = syntheticUs(city, stateName);
+    const state = resolveUsStateToken(second);
+    if (state) {
+      const synthetic = syntheticUs(parts.slice(0, -1).join(", "), state);
       return { valid: true, entry: synthetic, displayName: formatDisplayName(synthetic) };
     }
     const india = tryParseIndiaLocation(key);
     if (india) {
       return { valid: true, entry: india, displayName: formatDisplayName(india) };
+    }
+    const intl = tryParseIntlCityCountry(key);
+    if (intl) {
+      return { valid: true, entry: intl, displayName: formatDisplayName(intl) };
     }
     for (const part of parts) {
       if (LOOKUP.has(part)) {
@@ -612,8 +734,17 @@ export function resolveGeoEntry(input: string): {
     return { valid: true, entry: indiaSynthetic, displayName: formatDisplayName(indiaSynthetic) };
   }
 
+  const intlSynthetic = tryParseIntlCityCountry(key);
+  if (intlSynthetic) {
+    return { valid: true, entry: intlSynthetic, displayName: formatDisplayName(intlSynthetic) };
+  }
+
   for (const [dbKey, entry] of LOOKUP) {
-    if (key.length >= 4 && (key === dbKey || key.includes(dbKey) || dbKey.includes(key))) {
+    if (
+      key.length >= 4 &&
+      dbKey.length >= 4 &&
+      (key === dbKey || key.startsWith(`${dbKey} `) || key.endsWith(` ${dbKey}`) || key.includes(` ${dbKey} `))
+    ) {
       return { valid: true, entry, displayName: formatDisplayName(entry) };
     }
   }

@@ -1,0 +1,55 @@
+/** Country tokens for "City, Country" free-text resolution */
+export type CountryMeta = {
+  country: string;
+  countryCode: string;
+  newsRegion: string;
+  newsLang: string;
+};
+
+export const COUNTRY_ALIASES: Record<string, CountryMeta> = {
+  india: { country: "India", countryCode: "IN", newsRegion: "IN", newsLang: "en-IN" },
+  bharat: { country: "India", countryCode: "IN", newsRegion: "IN", newsLang: "en-IN" },
+  israel: { country: "Israel", countryCode: "IL", newsRegion: "IL", newsLang: "he" },
+  singapore: { country: "Singapore", countryCode: "SG", newsRegion: "SG", newsLang: "en-SG" },
+  japan: { country: "Japan", countryCode: "JP", newsRegion: "JP", newsLang: "ja" },
+  china: { country: "China", countryCode: "CN", newsRegion: "CN", newsLang: "zh-CN" },
+  uk: { country: "United Kingdom", countryCode: "GB", newsRegion: "GB", newsLang: "en-GB" },
+  "united kingdom": { country: "United Kingdom", countryCode: "GB", newsRegion: "GB", newsLang: "en-GB" },
+  britain: { country: "United Kingdom", countryCode: "GB", newsRegion: "GB", newsLang: "en-GB" },
+  england: { country: "United Kingdom", countryCode: "GB", newsRegion: "GB", newsLang: "en-GB" },
+  france: { country: "France", countryCode: "FR", newsRegion: "FR", newsLang: "fr" },
+  germany: { country: "Germany", countryCode: "DE", newsRegion: "DE", newsLang: "de" },
+  canada: { country: "Canada", countryCode: "CA", newsRegion: "CA", newsLang: "en-CA" },
+  australia: { country: "Australia", countryCode: "AU", newsRegion: "AU", newsLang: "en-AU" },
+  "south korea": { country: "South Korea", countryCode: "KR", newsRegion: "KR", newsLang: "ko" },
+  korea: { country: "South Korea", countryCode: "KR", newsRegion: "KR", newsLang: "ko" },
+  uae: { country: "United Arab Emirates", countryCode: "AE", newsRegion: "AE", newsLang: "en-AE" },
+  "united arab emirates": { country: "United Arab Emirates", countryCode: "AE", newsRegion: "AE", newsLang: "en-AE" },
+  "saudi arabia": { country: "Saudi Arabia", countryCode: "SA", newsRegion: "SA", newsLang: "ar" },
+  brazil: { country: "Brazil", countryCode: "BR", newsRegion: "BR", newsLang: "pt-BR" },
+  mexico: { country: "Mexico", countryCode: "MX", newsRegion: "MX", newsLang: "es-419" },
+  kenya: { country: "Kenya", countryCode: "KE", newsRegion: "KE", newsLang: "en-KE" },
+  nigeria: { country: "Nigeria", countryCode: "NG", newsRegion: "NG", newsLang: "en-NG" },
+  "south africa": { country: "South Africa", countryCode: "ZA", newsRegion: "ZA", newsLang: "en-ZA" },
+  egypt: { country: "Egypt", countryCode: "EG", newsRegion: "EG", newsLang: "ar-EG" },
+  thailand: { country: "Thailand", countryCode: "TH", newsRegion: "TH", newsLang: "th" },
+  indonesia: { country: "Indonesia", countryCode: "ID", newsRegion: "ID", newsLang: "id" },
+  philippines: { country: "Philippines", countryCode: "PH", newsRegion: "PH", newsLang: "en-PH" },
+  malaysia: { country: "Malaysia", countryCode: "MY", newsRegion: "MY", newsLang: "en-MY" },
+  taiwan: { country: "Taiwan", countryCode: "TW", newsRegion: "TW", newsLang: "zh-TW" },
+  vietnam: { country: "Vietnam", countryCode: "VN", newsRegion: "VN", newsLang: "vi" },
+  turkey: { country: "Turkey", countryCode: "TR", newsRegion: "TR", newsLang: "tr" },
+  switzerland: { country: "Switzerland", countryCode: "CH", newsRegion: "CH", newsLang: "de-CH" },
+  netherlands: { country: "Netherlands", countryCode: "NL", newsRegion: "NL", newsLang: "nl" },
+  sweden: { country: "Sweden", countryCode: "SE", newsRegion: "SE", newsLang: "sv" },
+  norway: { country: "Norway", countryCode: "NO", newsRegion: "NO", newsLang: "no" },
+  ireland: { country: "Ireland", countryCode: "IE", newsRegion: "IE", newsLang: "en-IE" },
+  spain: { country: "Spain", countryCode: "ES", newsRegion: "ES", newsLang: "es" },
+  italy: { country: "Italy", countryCode: "IT", newsRegion: "IT", newsLang: "it" },
+  portugal: { country: "Portugal", countryCode: "PT", newsRegion: "PT", newsLang: "pt-PT" },
+  austria: { country: "Austria", countryCode: "AT", newsRegion: "AT", newsLang: "de" },
+  poland: { country: "Poland", countryCode: "PL", newsRegion: "PL", newsLang: "pl" },
+  russia: { country: "Russia", countryCode: "RU", newsRegion: "RU", newsLang: "ru" },
+  usa: { country: "United States", countryCode: "US", newsRegion: "US", newsLang: "en-US" },
+  "united states": { country: "United States", countryCode: "US", newsRegion: "US", newsLang: "en-US" },
+};

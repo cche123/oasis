@@ -63,3 +63,13 @@ export const FALLBACK_MARKETS = [
   "Emerging Markets",
   "Middle East",
 ];
+
+/** Clickable onboarding examples — input → pretty label */
+export const LOCATION_EXAMPLES = [
+  { input: "Detroit, Michigan", label: "Detroit, Michigan" },
+  { input: "Walnut Creek, California", label: "Walnut Creek, California" },
+  { input: "New Delhi, India", label: "New Delhi, India" },
+  { input: "Tel Aviv, Israel", label: "Tel Aviv, Israel" },
+  { input: "Singapore", label: "Singapore" },
+  { input: "London, United Kingdom", label: "London, United Kingdom" },
+] as const;

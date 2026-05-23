@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { buildPulseNarratives } from "@/lib/pulse-engine";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const interests = searchParams.get("interests")?.split("|").filter(Boolean) || [];
@@ -24,11 +26,12 @@ export async function GET(req: Request) {
     source: string;
     category: string;
     date: string;
+    publishedAt?: string;
   }> = [];
 
   try {
     const newsRes = await fetch(`${origin}/api/news?${newsQs.toString()}`, {
-      next: { revalidate: 300 },
+      cache: "no-store",
     });
     if (newsRes.ok) {
       const data = await newsRes.json();

@@ -9,6 +9,7 @@ import { mockThemes } from "@/lib/data";
 import { buildNewsQueryParams } from "@/lib/news-params";
 import { Sparkles, MapPin, Zap } from "lucide-react";
 import { XVoices } from "@/components/x-voices";
+import { LocationBadge } from "@/components/location-display";
 import type { PulseNarrative } from "@/lib/pulse-engine";
 
 const containerVars: Variants = {
@@ -68,7 +69,7 @@ export default function DashboardPage() {
               "AI-curated intelligence stream based on your custom interest.",
             category: "Custom Topic",
             interestScore: 3,
-            lastUpdated: "Just now",
+            lastUpdated: "Live feed",
             tags: ["Personalized", "AI Curated"],
             isSaved: true,
           };
@@ -84,7 +85,7 @@ export default function DashboardPage() {
         resolvedLocation: user.resolvedLocation,
         markets: user.internationalMarkets,
       });
-      const res = await fetch(`/api/news${qs}`);
+      const res = await fetch(`/api/news${qs}`, { cache: "no-store" });
       if (!res.ok) throw new Error("Failed to fetch news");
       const data = await res.json();
       if (data.signals?.length > 0) {
@@ -105,7 +106,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     fetchLiveSignals();
-    const interval = setInterval(fetchLiveSignals, 5 * 60_000);
+    const interval = setInterval(fetchLiveSignals, 3 * 60_000);
     return () => clearInterval(interval);
   }, [fetchLiveSignals]);
 
@@ -178,7 +179,13 @@ export default function DashboardPage() {
         </h1>
         <p className="text-sm text-muted-foreground font-light mb-4">
           Briefing for{" "}
-          <span className="text-foreground font-medium">{regionLabel}</span>
+          <span className="text-foreground font-medium">
+            {user.resolvedLocation?.valid ? (
+              <LocationBadge name={regionLabel} variant="light" />
+            ) : (
+              regionLabel
+            )}
+          </span>
           {user.internationalMarkets?.length > 0 && (
             <>
               {" "}

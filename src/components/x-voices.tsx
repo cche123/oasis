@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import type { XPost } from "@/lib/x-types";
 import { X_TOPIC_VOICES, type XTopic } from "@/lib/x-voices-config";
 import { cn } from "@/lib/utils";
+import { formatPublishedAt } from "@/lib/publish-time";
 
 function loadTwitterWidgets() {
   const existing = document.getElementById("twitter-wjs");
@@ -49,16 +50,7 @@ function XTimelineEmbed({ username }: { username: string }) {
 }
 
 function formatTime(iso: string): string {
-  try {
-    const d = new Date(iso);
-    const diff = Date.now() - d.getTime();
-    const hrs = Math.floor(diff / 3600000);
-    if (hrs < 1) return "Just now";
-    if (hrs < 24) return `${hrs}h ago`;
-    return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-  } catch {
-    return "";
-  }
+  return formatPublishedAt(iso) || "";
 }
 
 type XVoicesProps = {
@@ -90,7 +82,7 @@ export function XVoices({
       } catch {}
       const params = new URLSearchParams({ topic });
       if (user) params.set("user", user);
-      const res = await fetch(`/api/x-feed?${params.toString()}`);
+      const res = await fetch(`/api/x-feed?${params.toString()}`, { cache: "no-store" });
       if (!res.ok) throw new Error("fetch failed");
       const data = await res.json();
       setPosts((data.posts || []).slice(0, maxPosts));
@@ -104,7 +96,7 @@ export function XVoices({
 
   useEffect(() => {
     fetchFeed();
-    const interval = setInterval(fetchFeed, 5 * 60_000);
+    const interval = setInterval(fetchFeed, 3 * 60_000);
     return () => clearInterval(interval);
   }, [fetchFeed]);
 

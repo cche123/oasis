@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import type { XPost } from "@/lib/x-types";
 import { getHandlesForTopic, type XTopic } from "@/lib/x-voices-config";
+import { parsePubDate, toIsoOrNull } from "@/lib/publish-time";
+
+export const dynamic = "force-dynamic";
 
 async function fetchTwitterApiV2(
   username: string,
@@ -9,7 +12,7 @@ async function fetchTwitterApiV2(
   try {
     const userRes = await fetch(
       `https://api.twitter.com/2/users/by/username/${username}?user.fields=name,username`,
-      { headers: { Authorization: `Bearer ${bearerToken}` }, next: { revalidate: 600 } }
+      { headers: { Authorization: `Bearer ${bearerToken}` }, next: { revalidate: 120 }, cache: "no-store" }
     );
     if (!userRes.ok) return [];
     const userData = await userRes.json();
@@ -18,7 +21,7 @@ async function fetchTwitterApiV2(
 
     const tweetsRes = await fetch(
       `https://api.twitter.com/2/users/${userId}/tweets?max_results=5&tweet.fields=created_at,public_metrics&exclude=retweets,replies`,
-      { headers: { Authorization: `Bearer ${bearerToken}` }, next: { revalidate: 300 } }
+      { headers: { Authorization: `Bearer ${bearerToken}` }, next: { revalidate: 120 }, cache: "no-store" }
     );
     if (!tweetsRes.ok) return [];
 
@@ -51,7 +54,8 @@ async function fetchXViaGoogleNews(handle: string): Promise<XPost[]> {
     const url = `https://news.google.com/rss/search?q=${q}&hl=en-US&gl=US&ceid=US:en`;
     const res = await fetch(url, {
       headers: { Accept: "application/rss+xml" },
-      next: { revalidate: 600 },
+      next: { revalidate: 120 },
+      cache: "no-store",
     });
     if (!res.ok) return [];
 
@@ -63,15 +67,17 @@ async function fetchXViaGoogleNews(handle: string): Promise<XPost[]> {
       const block = match[1];
       const titleMatch = /<title>([\s\S]*?)<\/title>/i.exec(block);
       const linkMatch = /<link>([\s\S]*?)<\/link>/i.exec(block);
+      const pubMatch = /<pubDate>([\s\S]*?)<\/pubDate>/i.exec(block);
       const title = titleMatch?.[1]?.replace(/<!\[CDATA\[|\]\]>/g, "").trim() || "";
       const link = linkMatch?.[1]?.trim() || "";
+      const published = parsePubDate(pubMatch?.[1]?.trim());
       if (title && link.startsWith("http")) {
         items.push({
           id: link,
           text: title,
           author: handle,
           handle: `@${handle}`,
-          createdAt: new Date().toISOString(),
+          createdAt: toIsoOrNull(published) || new Date(0).toISOString(),
           url: link,
         });
       }
@@ -103,7 +109,12 @@ export async function GET(req: Request) {
     if (allPosts.length >= 36) break;
   }
 
-  allPosts.sort((a, b) => (b.likes || 0) - (a.likes || 0));
+  allPosts.sort((a, b) => {
+    const aT = new Date(a.createdAt).getTime();
+    const bT = new Date(b.createdAt).getTime();
+    if (bT !== aT) return bT - aT;
+    return (b.likes || 0) - (a.likes || 0);
+  });
 
   return NextResponse.json({
     posts: allPosts.slice(0, 40),

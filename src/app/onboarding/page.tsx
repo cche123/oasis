@@ -6,7 +6,8 @@ import { ArrowRight, Check, User, Plus, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { useUser } from "@/components/user-context";
-import { resolveLocation, FALLBACK_MARKETS } from "@/lib/locations";
+import { resolveLocation, FALLBACK_MARKETS, LOCATION_EXAMPLES } from "@/lib/locations";
+import { LocationExamples, LocationResolved } from "@/components/location-display";
 
 const INTERESTS = [
   "Artificial Intelligence",
@@ -130,7 +131,7 @@ function OnboardingContent() {
     return {
       name: name || "Guest",
       interests: selected,
-      location: location.trim(),
+      location: loc.valid ? loc.displayName : location.trim(),
       internationalMarkets:
         selectedMarkets.length > 0
           ? selectedMarkets
@@ -315,32 +316,37 @@ function OnboardingContent() {
                     Where are you focused?
                   </h1>
                 </div>
-                <div className="space-y-6 max-w-sm mx-auto">
+                <div className="space-y-8 max-w-lg mx-auto">
                   <div className="space-y-3">
-                    <label className="text-xs text-white/50 uppercase tracking-widest">
+                    <label className="text-xs text-white/50 uppercase tracking-widest block text-center">
                       Your Location
                     </label>
                     <input
                       type="text"
                       value={location}
                       onChange={(e) => setLocation(e.target.value)}
-                      placeholder="e.g. Troy, Michigan · Gujarat · Singapore · Kyoto"
-                      className="w-full bg-transparent border-b border-white/20 focus:border-white py-3 text-lg font-light tracking-wide focus:outline-none transition-colors placeholder:text-white/20"
+                      placeholder="City, State or City, Country"
+                      className="w-full bg-transparent border-b border-white/20 focus:border-white py-3 text-lg font-light tracking-wide text-center focus:outline-none transition-colors placeholder:text-white/20"
                     />
+                    {resolved.valid && location.trim().length >= 2 && (
+                      <div className="flex justify-center pt-1">
+                        <LocationResolved location={resolved} variant="dark" />
+                      </div>
+                    )}
                     {locationWarning && location.trim().length >= 2 && (
-                      <div className="flex items-start gap-2 text-amber-400/90 text-xs">
+                      <div className="flex items-start gap-2 text-amber-400/90 text-xs justify-center text-center">
                         <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
                         <span>
-                          Location not recognized — using US news. Continue or pick markets below.
+                          Try Walnut Creek, California or Tel Aviv, Israel — or pick markets below.
                         </span>
                       </div>
                     )}
-                    {resolved.valid && location.trim().length >= 2 && (
-                      <p className="text-xs text-emerald-400/80">
-                        ✓ {resolved.displayName} — regional news enabled
-                      </p>
-                    )}
                   </div>
+                  <LocationExamples
+                    examples={[...LOCATION_EXAMPLES]}
+                    onSelect={(input) => setLocation(input)}
+                    variant="dark"
+                  />
                   <div className="space-y-3">
                     <label className="text-xs text-white/50 uppercase tracking-widest">
                       International Markets
