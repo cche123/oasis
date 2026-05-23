@@ -115,7 +115,12 @@ export function AiChatbot() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.details || data.error || "Request failed");
+        const detail = data.details || data.error || "Request failed";
+        throw new Error(detail);
+      }
+
+      if (!data.text) {
+        throw new Error("Empty response from AI");
       }
 
       if (data.updates) {
@@ -134,13 +139,17 @@ export function AiChatbot() {
       setMessages((prev) => [...prev, aiMessage]);
     } catch (error) {
       console.error("Chat error:", error);
+      const msg =
+        error instanceof Error ? error.message : "Something went wrong";
       setMessages((prev) => [
         ...prev,
         {
           id: (Date.now() + 1).toString(),
           role: "ai",
           content:
-            "Connection interrupted. Check your network or add GEMINI_API_KEY to enable full AI responses.",
+            msg.includes("GEMINI") || msg.includes("API key")
+              ? "Oasis AI isn't configured on this server yet. The app owner needs to set GEMINI_API_KEY in the deployment environment."
+              : `I couldn't reach the AI service right now. Please try again in a moment.${msg ? ` (${msg})` : ""}`,
         },
       ]);
     } finally {
