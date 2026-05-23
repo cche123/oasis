@@ -1,3 +1,4 @@
+export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { OASIS_UPDATE_MARKER, type OasisFeedUpdate } from "@/lib/chat-types";
 import { generateGeminiReply, isGeminiConfigured } from "@/lib/gemini";

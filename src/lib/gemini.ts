@@ -1,3 +1,4 @@
+export const runtime = "nodejs";
 import { GoogleGenerativeAI, type Content } from "@google/generative-ai";
 import { loadOasisEnv } from "@/lib/load-env";
 

@@ -1,3 +1,4 @@
+export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import type { XPost } from "@/lib/x-types";
 import { getHandlesForTopic, type XTopic } from "@/lib/x-voices-config";
