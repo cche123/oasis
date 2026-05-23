@@ -1,8 +1,6 @@
 export const runtime = "nodejs";
-import { NextResponse } from "next/server";
-import { loadOasisEnv } from "@/lib/load-env";
 
-loadOasisEnv();
+import { NextResponse } from "next/server";
 
 /** Display symbol → Yahoo Finance symbol */
 export const YAHOO_SYMBOLS: Record<string, string> = {

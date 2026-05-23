@@ -1,10 +1,6 @@
-export const runtime = "nodejs";
 import { GoogleGenerativeAI, type Content } from "@google/generative-ai";
-import { loadOasisEnv } from "@/lib/load-env";
 
 const MODELS = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"] as const;
-
-loadOasisEnv();
 
 export function getGeminiApiKey(): string | undefined {
   const key = process.env.GEMINI_API_KEY?.trim();
@@ -12,7 +8,6 @@ export function getGeminiApiKey(): string | undefined {
 }
 
 export function isGeminiConfigured(): boolean {
-  loadOasisEnv();
   return Boolean(getGeminiApiKey());
 }
 
@@ -56,8 +51,6 @@ export async function generateGeminiReply(
   systemInstruction: string,
   messages: Array<{ role: string; content: string }>
 ): Promise<string> {
-  loadOasisEnv();
-
   const apiKey = getGeminiApiKey();
   if (!apiKey) {
     throw new Error("GEMINI_NOT_CONFIGURED");

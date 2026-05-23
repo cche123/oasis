@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { formatPublishedAt, parsePubDate, toIsoOrNull } from "@/lib/publish-time";
 
+export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 type DealSignal = {

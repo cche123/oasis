@@ -4,6 +4,7 @@ import { getRegionalNewsFeeds } from "@/lib/regional-news";
 import type { ResolvedLocation } from "@/lib/locations";
 import { formatPublishedAt, parsePubDate, toIsoOrNull } from "@/lib/publish-time";
 
+export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 type RSSSignal = {

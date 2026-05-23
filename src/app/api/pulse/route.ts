@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { buildPulseNarratives } from "@/lib/pulse-engine";
 
+export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
