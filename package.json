@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "env:check": "node -e \"require('./src/lib/load-env.ts')\" 2>/dev/null || npx tsx -e \"import { loadOasisEnv } from './src/lib/load-env.ts'; loadOasisEnv(); console.log('GEMINI:', process.env.GEMINI_API_KEY ? 'set' : 'MISSING')\""
   },
   "dependencies": {
     "@google/genai": "^2.2.0",

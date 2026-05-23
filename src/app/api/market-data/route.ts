@@ -1,4 +1,7 @@
 import { NextResponse } from "next/server";
+import { loadOasisEnv } from "@/lib/load-env";
+
+loadOasisEnv();
 
 /** Display symbol → Yahoo Finance symbol */
 export const YAHOO_SYMBOLS: Record<string, string> = {

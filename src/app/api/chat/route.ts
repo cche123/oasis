@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
 import { OASIS_UPDATE_MARKER, type OasisFeedUpdate } from "@/lib/chat-types";
 import { generateGeminiReply, isGeminiConfigured } from "@/lib/gemini";
+import { loadOasisEnv } from "@/lib/load-env";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+
+loadOasisEnv();
 
 function parseFeedUpdate(text: string): { cleanText: string; updates?: OasisFeedUpdate } {
   const match = OASIS_UPDATE_MARKER.exec(text);
@@ -92,7 +95,7 @@ export async function POST(req: Request) {
     return NextResponse.json(
       {
         error: "AI_NOT_CONFIGURED",
-        text: "Oasis AI isn't connected on this server. Add GEMINI_API_KEY to .env.local (local) or your host's environment variables (Vercel → Settings → Environment Variables), then restart the server.",
+        text: "Oasis AI could not find GEMINI_API_KEY. Put your key in `.env.local` (recommended) or `.env.example`, then restart with `npm run dev`. On Vercel, add GEMINI_API_KEY under Project → Settings → Environment Variables and redeploy.",
         ai: false,
       },
       { status: 503 }

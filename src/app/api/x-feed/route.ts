@@ -2,8 +2,11 @@ import { NextResponse } from "next/server";
 import type { XPost } from "@/lib/x-types";
 import { getHandlesForTopic, type XTopic } from "@/lib/x-voices-config";
 import { parsePubDate, toIsoOrNull } from "@/lib/publish-time";
+import { loadOasisEnv } from "@/lib/load-env";
 
 export const dynamic = "force-dynamic";
+
+loadOasisEnv();
 
 async function fetchTwitterApiV2(
   username: string,
