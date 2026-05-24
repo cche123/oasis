@@ -45,5 +45,4 @@ export const GLOBAL_NEWS_FEEDS: FeedConfig[] = [
   { url: "https://news.google.com/rss/search?q=stock+market+macro+economy&hl=en-US&gl=US&ceid=US:en", source: "Google News", category: "Macro" },
   { url: "https://news.google.com/rss/search?q=geopolitics+trade+policy&hl=en-US&gl=US&ceid=US:en", source: "Google News", category: "Geopolitics" },
   { url: "https://news.google.com/rss/search?q=energy+oil+commodities&hl=en-US&gl=US&ceid=US:en", source: "Google News", category: "Energy" },
-  { url: "https://news.google.com/rss/search?q=site:twitter.com+OR+from:DeItaone+markets&hl=en-US&gl=US&ceid=US:en", source: "Google News", category: "Social" },
 ];

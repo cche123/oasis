@@ -116,7 +116,9 @@ export function StockTicker() {
   ));
 
   return (
-    <div className="sticky top-0 z-40 w-full shrink-0 border-b border-border bg-card overflow-hidden">
+    <div
+      className="sticky top-0 z-40 w-full shrink-0 border-b border-border bg-card overflow-hidden"
+    >
       <div className="relative flex h-9 min-h-9 items-center overflow-hidden">
         <div className="oasis-ticker-track flex items-center gap-10 whitespace-nowrap text-[11px] tracking-wide py-2 pl-4">
           {items}

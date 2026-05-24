@@ -145,9 +145,10 @@ export function XVoices({
                 href={p.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="block text-xs text-muted-foreground hover:text-foreground transition-colors line-clamp-2"
+                className="block text-xs hover:text-foreground transition-colors"
               >
-                <span className="text-foreground font-medium">{p.handle}</span> {p.text}
+                <span className="text-foreground font-semibold">{p.handle}</span>
+                <span className="text-muted-foreground line-clamp-1"> {p.text}</span>
               </a>
             ))}
           </div>
@@ -235,8 +236,11 @@ export function XVoices({
                   {formatTime(p.createdAt)}
                 </span>
               </div>
-              <p className="text-sm text-muted-foreground font-light leading-relaxed line-clamp-4 group-hover:text-foreground transition-colors">
+              <p className="text-sm text-muted-foreground font-light leading-relaxed line-clamp-2 group-hover:text-foreground transition-colors">
                 {p.text}
+              </p>
+              <p className="text-[10px] text-muted-foreground/80 mt-2 uppercase tracking-widest">
+                via x {p.handle}
               </p>
               <ExternalLink className="w-3 h-3 mt-2 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
             </motion.a>

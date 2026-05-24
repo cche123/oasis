@@ -28,6 +28,8 @@ type LiveSignal = {
   date: string;
   category: string;
   summary: string;
+  xHandle?: string;
+  isXPost?: boolean;
 };
 
 const CATEGORIES = ["All Signals", "Markets", "M&A", "Macro", "Geopolitics", "Energy"];
@@ -168,11 +170,24 @@ export default function SignalsPage() {
                   </div>
                 </div>
                 <h3 className="text-xl font-serif text-foreground mb-2 leading-snug group-hover:underline decoration-1 underline-offset-4">
-                  {signal.title}
+                  {signal.isXPost || signal.category === "Social" ? (
+                    <span className="block">
+                      <span className="text-sm font-sans font-semibold not-italic tracking-wide">
+                        {signal.xHandle ? `@${signal.xHandle}` : signal.source}
+                      </span>
+                      <span className="block mt-1 text-lg font-serif font-normal line-clamp-2">
+                        {signal.title}
+                      </span>
+                    </span>
+                  ) : (
+                    signal.title
+                  )}
                 </h3>
-                <p className="text-sm text-muted-foreground font-light leading-relaxed">
-                  {signal.summary}
-                </p>
+                {signal.summary && !(signal.isXPost || signal.category === "Social") && (
+                  <p className="text-sm text-muted-foreground font-light leading-relaxed">
+                    {signal.summary}
+                  </p>
+                )}
               </a>
             </motion.div>
           ))}

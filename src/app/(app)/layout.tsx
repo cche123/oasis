@@ -1,6 +1,5 @@
 import { Sidebar } from "@/components/sidebar";
 import { StockTicker } from "@/components/stock-ticker";
-import { Walkthrough } from "@/components/walkthrough";
 
 export default function AppLayout({
   children,
@@ -13,7 +12,6 @@ export default function AppLayout({
       <main className="flex-1 flex flex-col min-h-0 h-screen overflow-y-auto bg-background">
         <StockTicker />
         <div className="flex-1 min-h-0">{children}</div>
-        <Walkthrough />
       </main>
     </div>
   );

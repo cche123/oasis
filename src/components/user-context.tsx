@@ -10,7 +10,6 @@ export type UserProfile = {
   internationalMarkets: string[];
   resolvedLocation?: ResolvedLocation;
   isLoggedIn: boolean;
-  hasSeenWalkthrough: boolean;
   /** Bumped when chatbot personalizes feed — triggers UI refresh */
   feedVersion?: number;
 };
@@ -28,7 +27,6 @@ const defaultUser: UserProfile = {
   location: "",
   internationalMarkets: [],
   isLoggedIn: false,
-  hasSeenWalkthrough: false,
   feedVersion: 0,
 };
 

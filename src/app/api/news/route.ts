@@ -3,6 +3,13 @@ import { GLOBAL_NEWS_FEEDS, type FeedConfig } from "@/lib/news-feeds";
 import { getRegionalNewsFeeds } from "@/lib/regional-news";
 import type { ResolvedLocation } from "@/lib/locations";
 import { formatPublishedAt, parsePubDate, toIsoOrNull } from "@/lib/publish-time";
+import { fetchXPosts } from "@/lib/x-feed-fetch";
+import {
+  compactXPostText,
+  formatXSource,
+  isXPostUrl,
+  resolveXHandle,
+} from "@/lib/x-signal-format";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,6 +23,8 @@ type RSSSignal = {
   publishedAt?: string;
   category: string;
   summary: string;
+  xHandle?: string;
+  isXPost?: boolean;
 };
 
 const MARKET_FEEDS: Record<string, FeedConfig[]> = {
@@ -54,6 +63,41 @@ const MARKET_FEEDS: Record<string, FeedConfig[]> = {
     googleNewsFeed("Gulf business finance energy", "AE", "en-AE", "Middle East"),
   ],
 };
+
+function normalizeXSignal(signal: RSSSignal): RSSSignal {
+  const handle = resolveXHandle(signal.sourceUrl, signal.title, signal.xHandle);
+  if (!handle && !isXPostUrl(signal.sourceUrl) && !signal.isXPost) return signal;
+
+  const h = handle || signal.xHandle || "x";
+  return {
+    ...signal,
+    category: "Social",
+    isXPost: true,
+    xHandle: h,
+    title: compactXPostText(signal.title),
+    source: formatXSource(h),
+    summary: "",
+  };
+}
+
+async function fetchSocialXSignals(): Promise<RSSSignal[]> {
+  const posts = await fetchXPosts("markets", undefined, 14);
+  return posts.map((post) => {
+    const handle = post.author.replace(/^@/, "");
+    return normalizeXSignal({
+      id: post.id,
+      title: post.text,
+      source: formatXSource(handle),
+      sourceUrl: post.url,
+      date: formatPublishedAt(post.createdAt) || "—",
+      publishedAt: post.createdAt,
+      category: "Social",
+      summary: "",
+      xHandle: handle,
+      isXPost: true,
+    });
+  });
+}
 
 function googleNewsFeed(
   query: string,
@@ -276,6 +320,18 @@ export async function GET(req: Request) {
     }
   }
 
+  signals = signals.map(normalizeXSignal);
+
+  const wantsSocial =
+    !category ||
+    category === "all" ||
+    category === "All Signals" ||
+    category.toLowerCase() === "social";
+  if (wantsSocial) {
+    const xSignals = await fetchSocialXSignals();
+    signals = [...xSignals, ...signals];
+  }
+
   if (category && category !== "all" && category !== "All Signals") {
     signals = signals.filter(
       (s) =>
@@ -299,6 +355,12 @@ export async function GET(req: Request) {
   });
 
   signals = diversifyBySource(signals, 5);
+
+  signals.sort((a, b) => {
+    const aT = a.publishedAt ? new Date(a.publishedAt).getTime() : 0;
+    const bT = b.publishedAt ? new Date(b.publishedAt).getTime() : 0;
+    return bT - aT;
+  });
 
   return NextResponse.json({
     signals: signals.slice(0, 50),

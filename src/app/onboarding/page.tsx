@@ -47,10 +47,18 @@ function OnboardingContent() {
   const hasStartedCalibration = useRef(false);
 
   const resolved = resolveLocation(location);
+  const musicDispatchedRef = useRef(false);
 
   // Sync step from browser back/forward
   useEffect(() => {
     setStep(stepFromUrl);
+  }, [stepFromUrl]);
+
+  // Start playlist once when the name screen first appears.
+  useEffect(() => {
+    if (stepFromUrl !== 1 || musicDispatchedRef.current) return;
+    musicDispatchedRef.current = true;
+    window.dispatchEvent(new Event("oasis-music-start"));
   }, [stepFromUrl]);
 
   // Lock page scroll — content stays fixed
@@ -121,7 +129,6 @@ function OnboardingContent() {
       internationalMarkets: ["USA"],
       resolvedLocation: undefined,
       isLoggedIn: true,
-      hasSeenWalkthrough: false,
       feedVersion: 1,
     });
   };
@@ -140,7 +147,6 @@ function OnboardingContent() {
             : ["USA"],
       resolvedLocation: loc.valid ? loc : undefined,
       isLoggedIn: true,
-      hasSeenWalkthrough: false,
       feedVersion: 1,
     };
   };

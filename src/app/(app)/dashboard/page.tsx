@@ -33,7 +33,29 @@ type LiveSignal = {
   date: string;
   category: string;
   summary: string;
+  xHandle?: string;
+  isXPost?: boolean;
 };
+
+function SignalHeadline({ signal }: { signal: LiveSignal }) {
+  const isX = signal.isXPost || signal.category === "Social";
+  if (isX) {
+    const handle = signal.xHandle ? `@${signal.xHandle}` : signal.source.replace(/^x\s/i, "");
+    return (
+      <>
+        <p className="text-xs font-semibold tracking-wide text-foreground mb-1">{handle}</p>
+        <h4 className="font-serif text-base text-foreground mb-1 group-hover:text-muted-foreground transition-colors leading-snug line-clamp-2">
+          {signal.title}
+        </h4>
+      </>
+    );
+  }
+  return (
+    <h4 className="font-serif text-lg text-foreground mb-1 group-hover:text-muted-foreground transition-colors leading-snug">
+      {signal.title}
+    </h4>
+  );
+}
 
 function getGreeting(): string {
   const hour = new Date().getHours();
@@ -406,9 +428,7 @@ export default function DashboardPage() {
                           {signal.date}
                         </span>
                       </div>
-                      <h4 className="font-serif text-lg text-foreground mb-1 group-hover:text-muted-foreground transition-colors leading-snug">
-                        {signal.title}
-                      </h4>
+                      <SignalHeadline signal={signal} />
                       <p className="text-xs text-muted-foreground font-serif italic flex items-center gap-1.5">
                         via {signal.source}{" "}
                         <ExternalLink className="w-2.5 h-2.5 opacity-0 group-hover:opacity-100 transition-opacity" />

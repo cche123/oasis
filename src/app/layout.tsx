@@ -3,6 +3,7 @@ import { Inter, Playfair_Display } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { AiChatbot } from "@/components/ai-chatbot";
+import { MusicPlayer } from "@/components/music-player";
 import { UserProvider } from "@/components/user-context";
 
 const inter = Inter({
@@ -35,8 +36,10 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <UserProvider>
-            {children}
-            <AiChatbot />
+            <MusicPlayer>
+              {children}
+              <AiChatbot />
+            </MusicPlayer>
           </UserProvider>
         </ThemeProvider>
       </body>

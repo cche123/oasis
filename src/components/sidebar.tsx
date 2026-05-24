@@ -2,17 +2,19 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Compass, Bookmark, Home, Activity, Settings, User, LogOut, Zap, Landmark } from "lucide-react";
+import { Compass, Bookmark, Home, Activity, Settings, User, LogOut, Zap, Landmark, Scan } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 import { useUser } from "@/components/user-context";
+import { MusicPlayerBar } from "@/components/music-player";
 
 const navItems = [
   { name: "My Oasis", href: "/dashboard", icon: Home },
   { name: "Explore", href: "/explore", icon: Compass },
   { name: "Saved", href: "/saved", icon: Bookmark },
   { name: "Pulse", href: "/pulse", icon: Zap },
+  { name: "Wave", href: "/wave", icon: Scan },
   { name: "Raises & Deals", href: "/private-markets", icon: Landmark },
   { name: "Signals", href: "/signals", icon: Activity },
   { name: "Settings", href: "/settings", icon: Settings },
@@ -63,7 +65,11 @@ export function Sidebar() {
         })}
       </nav>
 
-      <div className="p-4 mt-auto border-t border-border space-y-4">
+      <div className="mt-auto">
+        <MusicPlayerBar placement="sidebar" />
+      </div>
+
+      <div className="p-4 border-t border-border space-y-4">
         {mounted && (
           <button
             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}

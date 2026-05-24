@@ -159,6 +159,7 @@ export function AiChatbot() {
   return (
     <>
       <button
+        type="button"
         onClick={() => setIsOpen(true)}
         className={cn(
           "fixed bottom-6 right-6 w-14 h-14 rounded-full bg-foreground text-background flex items-center justify-center hover:scale-110 transition-all duration-300 z-50 shadow-lg",
