@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { motion, useScroll, useTransform } from "framer-motion";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -27,14 +27,17 @@ function LinkedInIcon({ className }: { className?: string }) {
 }
 
 /** hero + intro sections + socials finale */
-const SCROLL_HEIGHT_VH = 380;
+const SCROLL_HEIGHT_VH = 420;
+const ENTER_WHEEL_THRESHOLD = 280;
 
 export function LandingScroll() {
   const router = useRouter();
   const containerRef = useRef<HTMLDivElement>(null);
-  const enteredRef = useRef(false);
+  const enteringRef = useRef(false);
   const [locationLine, setLocationLine] = useState<string | null>(null);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [hintLabel, setHintLabel] = useState("Scroll to continue");
+  const [enterProgress, setEnterProgress] = useState(0);
 
   const { scrollYProgress } = useScroll({
     target: containerRef,
@@ -47,11 +50,23 @@ export function LandingScroll() {
     [0, 0, 0, 0.45, 0.92]
   );
 
+  const videoScale = useTransform(scrollYProgress, [0, 1], [1, 1.08]);
+  const heroOpacity = useTransform(scrollYProgress, [0, 0.12], [1, 0]);
+  const heroY = useTransform(scrollYProgress, [0, 0.14], [0, -48]);
+
+  const enterOasis = useCallback(() => {
+    if (enteringRef.current) return;
+    enteringRef.current = true;
+    sessionStorage.setItem("oasis-music-autoplay", "1");
+    router.push("/onboarding?step=1");
+  }, [router]);
+
   useEffect(() => {
     try {
       const stored = localStorage.getItem("oasis-user");
       if (!stored) return;
       const profile = JSON.parse(stored);
+      if (profile.isLoggedIn) setIsLoggedIn(true);
       const loc = profile.resolvedLocation?.valid
         ? profile.resolvedLocation.displayName
         : profile.location
@@ -64,50 +79,106 @@ export function LandingScroll() {
   }, []);
 
   useEffect(() => {
+    const prevHtml = document.documentElement.style.overflow;
+    const prevBody = document.body.style.overflow;
     document.documentElement.style.overflow = "auto";
     document.body.style.overflow = "auto";
+    window.scrollTo(0, 0);
     return () => {
-      document.documentElement.style.overflow = "";
-      document.body.style.overflow = "";
+      document.documentElement.style.overflow = prevHtml;
+      document.body.style.overflow = prevBody;
     };
   }, []);
 
+  /** Final scroll push — wheel/touch accumulation before entering onboarding */
   useEffect(() => {
+    let scrollAccum = 0;
+    let armed = false;
+
     const onProgress = (v: number) => {
-      if (v > 0.82) setHintLabel("Scroll to enter Oasis");
+      if (v > 0.78) setHintLabel("Scroll to enter Oasis");
       else if (v > 0.02) setHintLabel("Scroll");
       else setHintLabel("Scroll to continue");
 
-      if (v >= 0.985 && !enteredRef.current) {
-        enteredRef.current = true;
-        sessionStorage.setItem("oasis-music-autoplay", "1");
-        router.push("/onboarding?step=1");
+      armed = v > 0.72;
+      if (!armed) {
+        scrollAccum = 0;
+        setEnterProgress(0);
       }
     };
 
-    const unsub = scrollYProgress.on("change", onProgress);
-    return () => unsub();
-  }, [scrollYProgress, router]);
+    const unsubscribe = scrollYProgress.on("change", onProgress);
+
+    const handleWheel = (e: WheelEvent) => {
+      if (!armed || enteringRef.current) return;
+      if (e.deltaY <= 0) return;
+      e.preventDefault();
+      scrollAccum += e.deltaY;
+      const progress = Math.min(scrollAccum / ENTER_WHEEL_THRESHOLD, 1);
+      setEnterProgress(progress);
+      if (scrollAccum >= ENTER_WHEEL_THRESHOLD) enterOasis();
+    };
+
+    let touchStartY = 0;
+    const handleTouchStart = (e: TouchEvent) => {
+      touchStartY = e.touches[0].clientY;
+    };
+    const handleTouchMove = (e: TouchEvent) => {
+      if (!armed || enteringRef.current) return;
+      const diff = touchStartY - e.touches[0].clientY;
+      if (diff <= 0) return;
+      scrollAccum += diff * 1.2;
+      const progress = Math.min(scrollAccum / ENTER_WHEEL_THRESHOLD, 1);
+      setEnterProgress(progress);
+      if (scrollAccum >= ENTER_WHEEL_THRESHOLD) enterOasis();
+      touchStartY = e.touches[0].clientY;
+    };
+
+    window.addEventListener("wheel", handleWheel, { passive: false });
+    window.addEventListener("touchstart", handleTouchStart, { passive: true });
+    window.addEventListener("touchmove", handleTouchMove, { passive: true });
+
+    return () => {
+      unsubscribe();
+      window.removeEventListener("wheel", handleWheel);
+      window.removeEventListener("touchstart", handleTouchStart);
+      window.removeEventListener("touchmove", handleTouchMove);
+    };
+  }, [scrollYProgress, enterOasis]);
+
+  const enterDarken = Math.min(enterProgress, 1);
 
   return (
     <motion.div className="relative bg-[#050505] min-h-screen text-white font-sans">
-      <LandingVideo />
+      <LandingVideo scale={videoScale} />
 
       <div className="fixed inset-0 z-[1] pointer-events-none">
         <motion.div className="absolute inset-0 bg-black" style={{ opacity: overlayOpacity }} />
+        <div
+          className="absolute inset-0 bg-black transition-opacity duration-150"
+          style={{ opacity: enterDarken }}
+        />
       </div>
 
       <div className="fixed bottom-12 md:bottom-16 right-8 md:right-14 z-30 pointer-events-none">
         <ScrollHint label={hintLabel} />
       </div>
 
+      {isLoggedIn && (
+        <div className="fixed top-6 right-6 z-30">
+          <Link
+            href="/dashboard"
+            className="text-[10px] uppercase tracking-[0.25em] text-white/50 hover:text-white border border-white/20 px-4 py-2 transition-colors"
+          >
+            Dashboard →
+          </Link>
+        </div>
+      )}
+
       <div ref={containerRef} style={{ height: `${SCROLL_HEIGHT_VH}vh` }}>
-        {/* Hero — original lock screen */}
         <section className="relative z-10 min-h-screen flex flex-col justify-end pb-12 md:pb-16 px-8 md:px-14 max-w-[1400px] mx-auto w-full">
           <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.3, ease: "easeOut" }}
+            style={{ opacity: heroOpacity, y: heroY }}
             className="max-w-[550px] pr-24"
           >
             <span className="text-white font-medium text-base leading-relaxed tracking-wide">
@@ -168,8 +239,7 @@ export function LandingScroll() {
           </section>
         ))}
 
-        {/* Socials + enter */}
-        <section className="relative z-10 min-h-[70vh] flex flex-col items-center justify-center px-8 pb-24">
+        <section className="relative z-10 min-h-screen flex flex-col items-center justify-center px-8 pb-24">
           <motion.div
             initial={{ opacity: 0, y: 24 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -208,6 +278,17 @@ export function LandingScroll() {
               >
                 <LinkedInIcon className="w-5 h-5" />
               </Link>
+            </div>
+
+            <div className="pt-4 flex flex-col items-center gap-6">
+              <ScrollHint label="Scroll to enter Oasis" />
+              <button
+                type="button"
+                onClick={enterOasis}
+                className="pointer-events-auto text-[10px] uppercase tracking-[0.3em] text-white/40 hover:text-white/70 transition-colors"
+              >
+                or tap to enter
+              </button>
             </div>
           </motion.div>
         </section>

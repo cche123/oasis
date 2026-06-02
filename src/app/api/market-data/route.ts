@@ -3,7 +3,7 @@ export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 
 /** Display symbol → Yahoo Finance symbol */
-export const YAHOO_SYMBOLS: Record<string, string> = {
+const YAHOO_SYMBOLS: Record<string, string> = {
   SPY: "SPY",
   QQQ: "QQQ",
   DIA: "DIA",
@@ -15,6 +15,28 @@ export const YAHOO_SYMBOLS: Record<string, string> = {
   TSLA: "TSLA",
   GOOGL: "GOOGL",
   META: "META",
+  // Wave impact mapping (subset of names produced by ripple-engine)
+  LMT: "LMT",
+  RTX: "RTX",
+  XLE: "XLE",
+  JETS: "JETS",
+  GLD: "GLD",
+  XOM: "XOM",
+  USO: "USO",
+  UAL: "UAL",
+  URI: "URI",
+  HD: "HD",
+  ALL: "ALL",
+  TRV: "TRV",
+  ADM: "ADM",
+  UNG: "UNG",
+  TLT: "TLT",
+  XLF: "XLF",
+  CRWD: "CRWD",
+  PANW: "PANW",
+  CYBR: "CYBR",
+  EWJ: "EWJ",
+  TM: "TM",
   BTC: "BTC-USD",
   ETH: "ETH-USD",
   GOLD: "GC=F",
@@ -26,7 +48,31 @@ export const YAHOO_SYMBOLS: Record<string, string> = {
   HSI: "^HSI",
 };
 
-export const TICKER_ORDER = Object.keys(YAHOO_SYMBOLS);
+// Keep the default top ticker bar payload small.
+const DEFAULT_TICKER_ORDER = [
+  "SPY",
+  "QQQ",
+  "DIA",
+  "AAPL",
+  "NVDA",
+  "CSCO",
+  "MSFT",
+  "AMZN",
+  "TSLA",
+  "GOOGL",
+  "META",
+  "BTC",
+  "ETH",
+  "GOLD",
+  "BRENT",
+  "10Y",
+  "N225",
+  "FTSE",
+  "DAX",
+  "HSI",
+] as const;
+
+const TICKER_ORDER = DEFAULT_TICKER_ORDER;
 
 type TickerResult = {
   symbol: string;
@@ -35,8 +81,7 @@ type TickerResult = {
 };
 
 async function fetchYahooQuote(displaySymbol: string): Promise<TickerResult | null> {
-  const yahooSymbol = YAHOO_SYMBOLS[displaySymbol];
-  if (!yahooSymbol) return null;
+  const yahooSymbol = YAHOO_SYMBOLS[displaySymbol] ?? displaySymbol;
 
   try {
     const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooSymbol)}?interval=1d&range=1d`;
@@ -144,18 +189,30 @@ const POLYGON_EQUITIES = new Set([
   "SPY", "QQQ", "DIA", "AAPL", "NVDA", "CSCO", "MSFT", "AMZN", "TSLA", "GOOGL", "META",
 ]);
 
-export async function GET() {
+export async function GET(req: Request) {
+  const url = new URL(req.url);
+  const symbolsParam = url.searchParams.get("symbols");
+  const requested =
+    symbolsParam && symbolsParam.trim().length > 0
+      ? symbolsParam
+          .split(",")
+          .map((s) => s.trim().toUpperCase())
+          .filter((s) => Boolean(s))
+      : null;
+
+  const symbolsToFetch = requested?.length ? requested : [...TICKER_ORDER];
+
   const polygonKey = process.env.POLYGON_API_KEY;
   const alphaKey = process.env.ALPHA_VANTAGE_API_KEY;
 
   const yahooResults = await Promise.allSettled(
-    TICKER_ORDER.map((sym) => fetchYahooQuote(sym))
+    symbolsToFetch.map((sym) => fetchYahooQuote(sym))
   );
 
   const bySymbol: Record<string, TickerResult> = {};
 
-  for (let i = 0; i < TICKER_ORDER.length; i++) {
-    const sym = TICKER_ORDER[i];
+  for (let i = 0; i < symbolsToFetch.length; i++) {
+    const sym = symbolsToFetch[i];
     const result = yahooResults[i];
     if (result.status === "fulfilled" && result.value) {
       bySymbol[sym] = result.value;
@@ -164,14 +221,14 @@ export async function GET() {
 
   if (polygonKey) {
     await Promise.all(
-      TICKER_ORDER.filter((s) => POLYGON_EQUITIES.has(s)).map(async (sym) => {
+      symbolsToFetch.filter((s) => POLYGON_EQUITIES.has(s)).map(async (sym) => {
         const poly = await fetchPolygonQuote(sym, sym, polygonKey);
         if (poly) bySymbol[sym] = poly;
       })
     );
   }
 
-  for (const sym of TICKER_ORDER) {
+  for (const sym of symbolsToFetch) {
     if (bySymbol[sym]) continue;
     if (alphaKey) {
       const av = await fetchAlphaVantageQuote(sym, alphaKey);
@@ -179,7 +236,7 @@ export async function GET() {
     }
   }
 
-  const tickers = TICKER_ORDER.filter((s) => bySymbol[s]).map((s) => bySymbol[s]);
+  const tickers = symbolsToFetch.filter((s) => bySymbol[s]).map((s) => bySymbol[s]);
 
   let source = "yahoo";
   if (polygonKey && tickers.length > 8) source = "polygon+yahoo";
@@ -187,7 +244,7 @@ export async function GET() {
 
   return NextResponse.json({
     tickers,
-    expected: TICKER_ORDER.length,
+    expected: symbolsToFetch.length,
     source,
     timestamp: new Date().toISOString(),
   });

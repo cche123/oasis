@@ -1,7 +1,7 @@
 "use client";
 
 import { mockThemes } from "@/lib/data";
-import { Search, SlidersHorizontal, Star, ArrowRight } from "lucide-react";
+import { Search, SlidersHorizontal, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { motion, Variants } from "framer-motion";
 

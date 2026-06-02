@@ -647,12 +647,6 @@ export function buildLookupMap(): Map<string, GeoEntry> {
 
 const LOOKUP = buildLookupMap();
 
-const US_STATE_NAMES = new Set(
-  GEO_ENTRIES.filter((e) => e.countryCode === "US" && e.city === e.state)
-    .map((e) => e.state?.toLowerCase())
-    .filter(Boolean)
-);
-
 export function formatDisplayName(entry: GeoEntry): string {
   if (entry.countryCode === "US" && entry.state && entry.city === entry.state) {
     return entry.state;

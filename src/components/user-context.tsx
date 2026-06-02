@@ -8,6 +8,7 @@ export type UserProfile = {
   interests: string[];
   location: string;
   internationalMarkets: string[];
+  trackedTickers?: string[];
   resolvedLocation?: ResolvedLocation;
   isLoggedIn: boolean;
   /** Bumped when chatbot personalizes feed — triggers UI refresh */
@@ -26,6 +27,7 @@ const defaultUser: UserProfile = {
   interests: [],
   location: "",
   internationalMarkets: [],
+  trackedTickers: [],
   isLoggedIn: false,
   feedVersion: 0,
 };

@@ -2,7 +2,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
-import type { XTopic } from "@/lib/x-voices-config";
+import { getHandlesForTopic, type XTopic } from "@/lib/x-voices-config";
 import { fetchXPosts } from "@/lib/x-feed-fetch";
 
 export async function GET(req: Request) {
@@ -11,7 +11,10 @@ export async function GET(req: Request) {
   const userHandle = searchParams.get("user")?.replace("@", "").trim();
 
   const posts = await fetchXPosts(topic, userHandle, 40);
-  const accounts = [...new Set(posts.map((p) => p.author))];
+  const accounts =
+    posts.length > 0
+      ? [...new Set(posts.map((p) => p.author))]
+      : getHandlesForTopic(topic, userHandle).slice(0, 8);
 
   return NextResponse.json({
     posts,

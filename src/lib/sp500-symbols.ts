@@ -1,0 +1,116 @@
+/** Curated S&P 500 / large-cap NASDAQ names for Public Markets + Wave resolution. */
+export type Sp500Entry = {
+  symbol: string;
+  name: string;
+  sector: string;
+  keywords: string[];
+};
+
+export const SP500_UNIVERSE: Sp500Entry[] = [
+  { symbol: "AAPL", name: "Apple", sector: "Technology", keywords: ["apple", "iphone", "tim cook"] },
+  { symbol: "MSFT", name: "Microsoft", sector: "Technology", keywords: ["microsoft", "azure", "satya"] },
+  { symbol: "NVDA", name: "NVIDIA", sector: "Technology", keywords: ["nvidia", "gpu", "h100", "blackwell"] },
+  { symbol: "GOOGL", name: "Alphabet", sector: "Technology", keywords: ["google", "alphabet", "youtube"] },
+  { symbol: "META", name: "Meta", sector: "Technology", keywords: ["meta", "facebook", "instagram"] },
+  { symbol: "AMZN", name: "Amazon", sector: "Consumer", keywords: ["amazon", "aws"] },
+  { symbol: "TSLA", name: "Tesla", sector: "Consumer", keywords: ["tesla", "elon musk ev"] },
+  { symbol: "JPM", name: "JPMorgan", sector: "Financials", keywords: ["jpmorgan", "jamie dimon"] },
+  { symbol: "BAC", name: "Bank of America", sector: "Financials", keywords: ["bank of america", "bofa"] },
+  { symbol: "GS", name: "Goldman Sachs", sector: "Financials", keywords: ["goldman sachs"] },
+  { symbol: "MS", name: "Morgan Stanley", sector: "Financials", keywords: ["morgan stanley"] },
+  { symbol: "WFC", name: "Wells Fargo", sector: "Financials", keywords: ["wells fargo"] },
+  { symbol: "XOM", name: "Exxon Mobil", sector: "Energy", keywords: ["exxon", "exxonmobil"] },
+  { symbol: "CVX", name: "Chevron", sector: "Energy", keywords: ["chevron"] },
+  { symbol: "COP", name: "ConocoPhillips", sector: "Energy", keywords: ["conocophillips"] },
+  { symbol: "SLB", name: "Schlumberger", sector: "Energy", keywords: ["schlumberger", "slb"] },
+  { symbol: "LMT", name: "Lockheed Martin", sector: "Defense", keywords: ["lockheed", "f-35"] },
+  { symbol: "RTX", name: "RTX", sector: "Defense", keywords: ["raytheon", "rtx", "pratt"] },
+  { symbol: "NOC", name: "Northrop Grumman", sector: "Defense", keywords: ["northrop"] },
+  { symbol: "GD", name: "General Dynamics", sector: "Defense", keywords: ["general dynamics"] },
+  { symbol: "BA", name: "Boeing", sector: "Industrials", keywords: ["boeing", "737"] },
+  { symbol: "DAL", name: "Delta Air", sector: "Industrials", keywords: ["delta air"] },
+  { symbol: "UAL", name: "United Airlines", sector: "Industrials", keywords: ["united airlines"] },
+  { symbol: "AAL", name: "American Airlines", sector: "Industrials", keywords: ["american airlines"] },
+  { symbol: "HD", name: "Home Depot", sector: "Consumer", keywords: ["home depot"] },
+  { symbol: "LOW", name: "Lowe's", sector: "Consumer", keywords: ["lowe's", "lowes"] },
+  { symbol: "URI", name: "United Rentals", sector: "Industrials", keywords: ["united rentals"] },
+  { symbol: "ALL", name: "Allstate", sector: "Financials", keywords: ["allstate"] },
+  { symbol: "TRV", name: "Travelers", sector: "Financials", keywords: ["travelers insurance"] },
+  { symbol: "PGR", name: "Progressive", sector: "Financials", keywords: ["progressive insurance"] },
+  { symbol: "ADM", name: "Archer-Daniels-Midland", sector: "Materials", keywords: ["archer daniels", "adm"] },
+  { symbol: "DE", name: "Deere", sector: "Industrials", keywords: ["deere", "john deere"] },
+  { symbol: "CAT", name: "Caterpillar", sector: "Industrials", keywords: ["caterpillar"] },
+  { symbol: "CRWD", name: "CrowdStrike", sector: "Technology", keywords: ["crowdstrike"] },
+  { symbol: "PANW", name: "Palo Alto Networks", sector: "Technology", keywords: ["palo alto networks"] },
+  { symbol: "ZS", name: "Zscaler", sector: "Technology", keywords: ["zscaler"] },
+  { symbol: "ORCL", name: "Oracle", sector: "Technology", keywords: ["oracle"] },
+  { symbol: "IBM", name: "IBM", sector: "Technology", keywords: ["ibm"] },
+  { symbol: "AMD", name: "AMD", sector: "Technology", keywords: ["amd", "advanced micro"] },
+  { symbol: "INTC", name: "Intel", sector: "Technology", keywords: ["intel"] },
+  { symbol: "AVGO", name: "Broadcom", sector: "Technology", keywords: ["broadcom"] },
+  { symbol: "TSM", name: "TSMC", sector: "Technology", keywords: ["tsmc", "taiwan semiconductor"] },
+  { symbol: "ASML", name: "ASML", sector: "Technology", keywords: ["asml"] },
+  { symbol: "LLY", name: "Eli Lilly", sector: "Healthcare", keywords: ["eli lilly", "zepbound"] },
+  { symbol: "UNH", name: "UnitedHealth", sector: "Healthcare", keywords: ["unitedhealth"] },
+  { symbol: "JNJ", name: "Johnson & Johnson", sector: "Healthcare", keywords: ["johnson & johnson"] },
+  { symbol: "PFE", name: "Pfizer", sector: "Healthcare", keywords: ["pfizer"] },
+  { symbol: "MRK", name: "Merck", sector: "Healthcare", keywords: ["merck"] },
+  { symbol: "WMT", name: "Walmart", sector: "Consumer", keywords: ["walmart"] },
+  { symbol: "COST", name: "Costco", sector: "Consumer", keywords: ["costco"] },
+  { symbol: "KO", name: "Coca-Cola", sector: "Consumer", keywords: ["coca-cola", "coke"] },
+  { symbol: "PEP", name: "PepsiCo", sector: "Consumer", keywords: ["pepsico", "pepsi"] },
+  { symbol: "NKE", name: "Nike", sector: "Consumer", keywords: ["nike"] },
+  { symbol: "DIS", name: "Disney", sector: "Media", keywords: ["disney", "warner", "paramount"] },
+  { symbol: "WBD", name: "Warner Bros Discovery", sector: "Media", keywords: ["warner bros", "discovery", "paramount"] },
+  { symbol: "PARA", name: "Paramount", sector: "Media", keywords: ["paramount"] },
+  { symbol: "CMCSA", name: "Comcast", sector: "Media", keywords: ["comcast", "nbcuniversal"] },
+  { symbol: "VZ", name: "Verizon", sector: "Communication", keywords: ["verizon"] },
+  { symbol: "T", name: "AT&T", sector: "Communication", keywords: ["at&t", "att"] },
+  { symbol: "NEE", name: "NextEra Energy", sector: "Utilities", keywords: ["nextera"] },
+  { symbol: "DUK", name: "Duke Energy", sector: "Utilities", keywords: ["duke energy"] },
+  { symbol: "SO", name: "Southern Co", sector: "Utilities", keywords: ["southern company"] },
+  { symbol: "TMUS", name: "T-Mobile", sector: "Communication", keywords: ["t-mobile"] },
+  { symbol: "BX", name: "Blackstone", sector: "Financials", keywords: ["blackstone"] },
+  { symbol: "KKR", name: "KKR", sector: "Financials", keywords: ["kkr"] },
+  { symbol: "APO", name: "Apollo", sector: "Financials", keywords: ["apollo global"] },
+  { symbol: "PLTR", name: "Palantir", sector: "Technology", keywords: ["palantir"] },
+  { symbol: "SNOW", name: "Snowflake", sector: "Technology", keywords: ["snowflake"] },
+  { symbol: "CRM", name: "Salesforce", sector: "Technology", keywords: ["salesforce"] },
+  { symbol: "NOW", name: "ServiceNow", sector: "Technology", keywords: ["servicenow"] },
+  { symbol: "UBER", name: "Uber", sector: "Technology", keywords: ["uber"] },
+  { symbol: "ABNB", name: "Airbnb", sector: "Consumer", keywords: ["airbnb"] },
+  { symbol: "F", name: "Ford", sector: "Consumer", keywords: ["ford motor"] },
+  { symbol: "GM", name: "GM", sector: "Consumer", keywords: ["general motors"] },
+  { symbol: "RIVN", name: "Rivian", sector: "Consumer", keywords: ["rivian"] },
+  { symbol: "COIN", name: "Coinbase", sector: "Financials", keywords: ["coinbase"] },
+  { symbol: "MSTR", name: "MicroStrategy", sector: "Technology", keywords: ["microstrategy"] },
+  { symbol: "MU", name: "Micron", sector: "Technology", keywords: ["micron"] },
+  { symbol: "QCOM", name: "Qualcomm", sector: "Technology", keywords: ["qualcomm"] },
+  { symbol: "AMAT", name: "Applied Materials", sector: "Technology", keywords: ["applied materials"] },
+  { symbol: "LRCX", name: "Lam Research", sector: "Technology", keywords: ["lam research"] },
+  { symbol: "GE", name: "GE Aerospace", sector: "Industrials", keywords: ["ge aerospace", "general electric"] },
+  { symbol: "HON", name: "Honeywell", sector: "Industrials", keywords: ["honeywell"] },
+  { symbol: "UPS", name: "UPS", sector: "Industrials", keywords: ["ups", "united parcel"] },
+  { symbol: "FDX", name: "FedEx", sector: "Industrials", keywords: ["fedex"] },
+  { symbol: "LIN", name: "Linde", sector: "Materials", keywords: ["linde"] },
+  { symbol: "FCX", name: "Freeport-McMoRan", sector: "Materials", keywords: ["freeport", "copper"] },
+  { symbol: "NEM", name: "Newmont", sector: "Materials", keywords: ["newmont", "gold miner"] },
+  { symbol: "PM", name: "Philip Morris", sector: "Consumer", keywords: ["philip morris"] },
+  { symbol: "MO", name: "Altria", sector: "Consumer", keywords: ["altria"] },
+  { symbol: "SBUX", name: "Starbucks", sector: "Consumer", keywords: ["starbucks"] },
+  { symbol: "MCD", name: "McDonald's", sector: "Consumer", keywords: ["mcdonald"] },
+  { symbol: "TGT", name: "Target", sector: "Consumer", keywords: ["target corp"] },
+  { symbol: "SHW", name: "Sherwin-Williams", sector: "Materials", keywords: ["sherwin-williams", "paint"] },
+];
+
+export function searchSp500(query: string, limit = 24): Sp500Entry[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return SP500_UNIVERSE.slice(0, limit);
+  return SP500_UNIVERSE.filter(
+    (e) =>
+      e.symbol.toLowerCase().includes(q) ||
+      e.name.toLowerCase().includes(q) ||
+      e.sector.toLowerCase().includes(q) ||
+      e.keywords.some((k) => k.includes(q))
+  ).slice(0, limit);
+}

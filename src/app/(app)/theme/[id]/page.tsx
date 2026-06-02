@@ -32,6 +32,25 @@ function slugToTitle(slug: string): string {
     .join(" ");
 }
 
+function themeKeywords(themeId: string, title: string): string[] {
+  const base = title
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, " ")
+    .split(/[\s-]+/)
+    .filter((w) => w.length > 2);
+
+  if (themeId === "ai-enabled-roll-ups") {
+    return ["ai", "roll-up", "rollups", "consolidation", "acquisition", "buyout", "software services"];
+  }
+  if (themeId.includes("defense")) {
+    return ["defense", "aerospace", "military", "security"];
+  }
+  if (themeId.includes("semiconductor")) {
+    return ["semiconductor", "chip", "fab", "foundry"];
+  }
+  return base;
+}
+
 export default function ThemeDetailPage() {
   const params = useParams();
   const id = (params?.id as string) || "";
@@ -61,10 +80,14 @@ export default function ThemeDetailPage() {
       const res = await fetch(`/api/news${qs}`);
       if (!res.ok) throw new Error("news failed");
       const data = await res.json();
+      const keys = themeKeywords(id, title);
       const filtered = (data.signals || []).filter((s: LiveSignal) => {
         const text = `${s.title} ${s.summary}`.toLowerCase();
-        const words = title.toLowerCase().split(/\s+/).filter((w) => w.length > 3);
-        return words.some((w) => text.includes(w)) || s.category.toLowerCase().includes(title.toLowerCase().slice(0, 8));
+        return (
+          keys.some((w) => text.includes(w)) ||
+          s.category.toLowerCase().includes("m&a") ||
+          s.category.toLowerCase().includes("venture")
+        );
       });
       setSignals(filtered.length > 0 ? filtered.slice(0, 12) : (data.signals || []).slice(0, 8));
     } catch {
@@ -72,7 +95,7 @@ export default function ThemeDetailPage() {
     } finally {
       setLoading(false);
     }
-  }, [title, user]);
+  }, [id, title, user]);
 
   useEffect(() => {
     fetchSignals();
@@ -180,7 +203,12 @@ export default function ThemeDetailPage() {
             </ul>
           </motion.section>
 
-          <XVoices compact title="X signals for this theme" />
+          <XVoices
+            compact
+            title="X signals for this theme"
+            defaultTopic={id.includes("roll-up") || id.includes("private") ? "vc" : "markets"}
+            showTopicTabs
+          />
         </div>
 
         <div className="lg:col-span-4 space-y-12">

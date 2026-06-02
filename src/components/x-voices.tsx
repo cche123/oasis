@@ -1,53 +1,13 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { ExternalLink, AtSign } from "lucide-react";
 import { motion } from "framer-motion";
 import type { XPost } from "@/lib/x-types";
 import { X_TOPIC_VOICES, type XTopic } from "@/lib/x-voices-config";
 import { cn } from "@/lib/utils";
 import { formatPublishedAt } from "@/lib/publish-time";
-
-function loadTwitterWidgets() {
-  const existing = document.getElementById("twitter-wjs");
-  if (existing) {
-    (window as { twttr?: { widgets?: { load: () => void } } }).twttr?.widgets?.load();
-    return;
-  }
-  const script = document.createElement("script");
-  script.id = "twitter-wjs";
-  script.src = "https://platform.twitter.com/widgets.js";
-  script.async = true;
-  document.head.appendChild(script);
-}
-
-function XTimelineEmbed({ username }: { username: string }) {
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    loadTwitterWidgets();
-    const t = setTimeout(() => {
-      (window as { twttr?: { widgets?: { load: (el?: Element) => void } } }).twttr?.widgets?.load(
-        ref.current || undefined
-      );
-    }, 800);
-    return () => clearTimeout(t);
-  }, [username]);
-
-  return (
-    <div ref={ref} className="max-h-[240px] overflow-hidden border border-border">
-      <a
-        className="twitter-timeline"
-        data-height="240"
-        data-theme="dark"
-        data-chrome="noheader nofooter noborders transparent"
-        href={`https://twitter.com/${username}`}
-      >
-        @{username}
-      </a>
-    </div>
-  );
-}
+import { isXStatusUrl } from "@/lib/x-signal-format";
 
 function formatTime(iso: string): string {
   return formatPublishedAt(iso) || "";
@@ -82,10 +42,52 @@ export function XVoices({
       } catch {}
       const params = new URLSearchParams({ topic });
       if (user) params.set("user", user);
-      const res = await fetch(`/api/x-feed?${params.toString()}`, { cache: "no-store" });
+      const controller = new AbortController();
+      const timeout = window.setTimeout(() => controller.abort(), 8000);
+      const res = await fetch(`/api/x-feed?${params.toString()}`, {
+        cache: "no-store",
+        signal: controller.signal,
+      });
+      window.clearTimeout(timeout);
       if (!res.ok) throw new Error("fetch failed");
       const data = await res.json();
-      setPosts((data.posts || []).slice(0, maxPosts));
+      const merged: XPost[] = [...(data.posts || [])];
+
+      if (merged.length < 3) {
+        const newsRes = await fetch("/api/news?category=Social", { cache: "no-store" });
+        if (newsRes.ok) {
+          const newsData = await newsRes.json();
+          const social = (newsData.signals || [])
+            .filter((s: { isXPost?: boolean; category?: string }) => s.isXPost || s.category === "Social")
+            .map(
+              (s: {
+                id: string;
+                title: string;
+                sourceUrl: string;
+                publishedAt?: string;
+                xHandle?: string;
+              }) => ({
+                id: s.id,
+                text: s.title,
+                author: (s.xHandle || "x").replace(/^@/, ""),
+                handle: `@${(s.xHandle || "x").replace(/^@/, "")}`,
+                createdAt: s.publishedAt || new Date().toISOString(),
+                url: s.sourceUrl,
+              })
+            )
+            .filter((p: XPost) => isXStatusUrl(p.url));
+          const seen = new Set(merged.map((p) => p.id));
+          const withSocial = [...merged];
+          for (const p of social) {
+            if (!seen.has(p.id)) withSocial.push(p);
+          }
+          setPosts(withSocial.slice(0, maxPosts));
+          setVoices(data.voices || []);
+          return;
+        }
+      }
+
+      setPosts(merged.filter((p) => isXStatusUrl(p.url)).slice(0, maxPosts));
       setVoices(data.voices || []);
     } catch {
       setPosts([]);
@@ -98,6 +100,15 @@ export function XVoices({
     fetchFeed();
     const interval = setInterval(fetchFeed, 3 * 60_000);
     return () => clearInterval(interval);
+  }, [fetchFeed]);
+
+  // If Oasis AI updates the X handle, refresh immediately.
+  useEffect(() => {
+    const onUpdated = () => {
+      void fetchFeed();
+    };
+    window.addEventListener("oasis-x-username-updated", onUpdated);
+    return () => window.removeEventListener("oasis-x-username-updated", onUpdated);
   }, [fetchFeed]);
 
   const topicTabs = X_TOPIC_VOICES.filter((t) => t.id !== "all");
@@ -153,19 +164,9 @@ export function XVoices({
             ))}
           </div>
         ) : (
-          <div className="flex flex-wrap gap-1">
-            {voices.slice(0, 6).map((u) => (
-              <a
-                key={u}
-                href={`https://x.com/${u}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-[9px] uppercase tracking-widest border border-border px-2 py-0.5 hover:border-foreground"
-              >
-                @{u}
-              </a>
-            ))}
-          </div>
+          <p className="text-xs text-muted-foreground font-light leading-relaxed">
+            No linkable posts right now. Add a handle in Settings or ask Oasis AI to track an account.
+          </p>
         )}
       </div>
     );
@@ -247,20 +248,14 @@ export function XVoices({
           ))}
         </div>
       ) : (
-        <div className="space-y-4">
-          <p className="text-sm text-muted-foreground font-light">
-            Embedding live timelines for top voices in this topic:
+        <div className="border border-border bg-card/40 p-6 text-center space-y-2">
+          <p className="text-sm text-muted-foreground font-light leading-relaxed max-w-md mx-auto">
+            No posts with direct status links loaded for this topic yet. Oasis only surfaces posts
+            that link to a specific tweet — not profile pages.
           </p>
-          <div className="grid md:grid-cols-3 gap-4">
-            {voices.slice(0, 3).map((u) => (
-              <div key={u}>
-                <p className="text-[10px] uppercase tracking-widest text-muted-foreground mb-2">
-                  @{u}
-                </p>
-                <XTimelineEmbed username={u} />
-              </div>
-            ))}
-          </div>
+          <p className="text-[10px] uppercase tracking-widest text-muted-foreground">
+            Tip: set TWITTER_BEARER_TOKEN for live API pulls, or add your handle in Settings.
+          </p>
         </div>
       )}
     </section>

@@ -24,6 +24,7 @@ function buildSystemInstruction(userContext?: {
   location?: string;
   resolvedLocation?: { valid?: boolean; displayName?: string; country?: string };
   internationalMarkets?: string[];
+  trackedTickers?: string[];
 }): string {
   const today = new Date().toLocaleDateString("en-US", {
     weekday: "long",
@@ -49,6 +50,11 @@ function buildSystemInstruction(userContext?: {
       ? `Tracking markets: ${userContext!.internationalMarkets!.join(", ")}.`
       : "";
 
+  const tickersContext =
+    (userContext?.trackedTickers?.length ?? 0) > 0
+      ? `Watchlist tickers: ${userContext!.trackedTickers!.join(", ")}.`
+      : "";
+
   return `
 You are Oasis, an institutional-grade AI assistant embedded in a market intelligence platform. Respond like ChatGPT or Google Gemini: natural, helpful, conversational, and sharp on markets.
 
@@ -63,10 +69,12 @@ CONTEXT:
 ${locationContext}
 ${interestsContext}
 ${marketsContext}
+${tickersContext}
 
 PERSONALIZATION: If the user asks to add topics, change their feed, or focus regions (e.g. "add AI roll-ups", "focus on Japan"), append at the END of your reply:
-<!--OASIS_UPDATE:{"addInterests":["topic"],"addMarkets":["Japan"],"location":"London"}-->
-Only include fields that change. Valid markets: USA, India, China, Japan, Europe, Singapore, Emerging Markets, Middle East.
+<!--OASIS_UPDATE:{"addInterests":["topic"],"removeInterests":["topic"],"addMarkets":["Japan"],"addTickers":["NVDA"],"removeTickers":["TSLA"],"location":"London","xUsername":"@elonmusk"}-->
+Only include fields that change. Valid markets: USA, India, China, Japan, Europe, Singapore, Middle East.
+Prefer these supported topics when suggesting personalization: Semiconductors, Defense Tech, AI-enabled Roll-ups, Private Equity, Venture Capital, Geopolitics, Pharmaceuticals, Energy & Oil, Natural Gas & LNG, Gold & Precious Metals, Macro Economics, Supply Chain Shift, Crypto & Digital Assets, Sovereign Wealth Funds.
   `.trim();
 }
 

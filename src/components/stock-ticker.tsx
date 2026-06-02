@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { memo, useEffect, useState } from "react";
+import { cachedFetchJson, readCachedJson } from "@/lib/client-fetch-cache";
 
 type TickerData = {
   symbol: string;
@@ -40,6 +41,8 @@ const DEFAULT_TICKERS: TickerData[] = TICKER_ORDER.map(
   (s) => FALLBACK_BY_SYMBOL[s]
 );
 
+const TICKER_CACHE_KEY = "market-data:default";
+
 function mergeTickers(live: TickerData[]): TickerData[] {
   const liveMap = new Map(live.map((t) => [t.symbol, t]));
   return TICKER_ORDER.map(
@@ -58,41 +61,39 @@ function formatPrice(t: TickerData): string {
   });
 }
 
-export function StockTicker() {
-  const [tickers, setTickers] = useState<TickerData[]>(DEFAULT_TICKERS);
-  const [isLive, setIsLive] = useState(false);
+function StockTickerInner() {
+  const [tickers, setTickers] = useState<TickerData[]>(() => {
+    const cached = readCachedJson<{ tickers?: TickerData[] }>(TICKER_CACHE_KEY, 120_000);
+    if (cached?.tickers?.length) return mergeTickers(cached.tickers);
+    return DEFAULT_TICKERS;
+  });
+  const [isLive, setIsLive] = useState(() => readCachedJson(TICKER_CACHE_KEY, 120_000) !== null);
 
-  const fetchLiveData = useCallback(async () => {
-    try {
-      const res = await fetch("/api/market-data", { cache: "no-store" });
-      if (!res.ok) return;
+  useEffect(() => {
+    let cancelled = false;
 
-      const data = await res.json();
-      if (data.tickers?.length > 0) {
+    const load = async () => {
+      try {
+        const data = await cachedFetchJson<{ tickers?: TickerData[] }>(
+          TICKER_CACHE_KEY,
+          "/api/market-data",
+          undefined,
+          120_000
+        );
+        if (cancelled || !data.tickers?.length) return;
         setTickers(mergeTickers(data.tickers));
         setIsLive(true);
+      } catch {
+        /* keep fallback */
       }
-    } catch (err) {
-      console.warn("Market data fetch failed:", err);
-    }
-  }, []);
+    };
 
-  useEffect(() => {
-    fetchLiveData();
-    const pollInterval = setInterval(fetchLiveData, 60_000);
-    return () => clearInterval(pollInterval);
-  }, [fetchLiveData]);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setTickers((prev) =>
-        prev.map((t) => ({
-          ...t,
-          price: t.price * (1 + (Math.random() - 0.5) * 0.00015),
-        }))
-      );
-    }, 3000);
-    return () => clearInterval(interval);
+    void load();
+    const pollInterval = setInterval(load, 120_000);
+    return () => {
+      cancelled = true;
+      clearInterval(pollInterval);
+    };
   }, []);
 
   const items = tickers.map((t) => (
@@ -116,9 +117,7 @@ export function StockTicker() {
   ));
 
   return (
-    <div
-      className="sticky top-0 z-40 w-full shrink-0 border-b border-border bg-card overflow-hidden"
-    >
+    <div className="sticky top-0 z-40 w-full shrink-0 border-b border-border bg-card overflow-hidden">
       <div className="relative flex h-9 min-h-9 items-center overflow-hidden">
         <div className="oasis-ticker-track flex items-center gap-10 whitespace-nowrap text-[11px] tracking-wide py-2 pl-4">
           {items}
@@ -127,7 +126,7 @@ export function StockTicker() {
 
         {isLive && (
           <div className="absolute top-1/2 right-3 -translate-y-1/2 flex items-center gap-1.5 bg-card/90 pl-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
             <span className="text-[9px] uppercase tracking-widest text-emerald-500/80 font-medium">
               Live
             </span>
@@ -137,3 +136,5 @@ export function StockTicker() {
     </div>
   );
 }
+
+export const StockTicker = memo(StockTickerInner);

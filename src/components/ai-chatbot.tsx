@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import { useUser } from "@/components/user-context";
 import { resolveLocation } from "@/lib/locations";
 import type { OasisFeedUpdate } from "@/lib/chat-types";
+import { resolveXHandleAlias } from "@/lib/x-handle-aliases";
 
 type Message = {
   id: string;
@@ -36,6 +37,7 @@ function applyFeedUpdates(
   updates: OasisFeedUpdate
 ): Partial<ReturnType<typeof useUser>["user"]> {
   const partial: Partial<ReturnType<typeof useUser>["user"]> = {};
+  const sanitizeTicker = (t: string) => t.toUpperCase().replace(/[^A-Z.\-]/g, "").slice(0, 8);
 
   if (updates.addInterests?.length) {
     const merged = [...user.interests];
@@ -57,6 +59,21 @@ function applyFeedUpdates(
       if (!merged.includes(m)) merged.push(m);
     }
     partial.internationalMarkets = merged;
+  }
+
+  if (updates.addTickers?.length || updates.removeTickers?.length) {
+    const merged = [...(user.trackedTickers ?? [])];
+    for (const t of updates.addTickers ?? []) {
+      const normalized = sanitizeTicker(t);
+      if (!normalized) continue;
+      if (!merged.some((x) => x.toUpperCase() === normalized)) merged.push(normalized);
+    }
+    const removeSet = new Set(
+      (updates.removeTickers ?? []).map((t) => sanitizeTicker(t)).filter(Boolean)
+    );
+    partial.trackedTickers = merged
+      .filter((t) => !removeSet.has(t.toUpperCase()))
+      .slice(0, 15);
   }
 
   if (updates.location) {
@@ -108,6 +125,7 @@ export function AiChatbot() {
             location: user?.location,
             resolvedLocation: user?.resolvedLocation,
             internationalMarkets: user?.internationalMarkets,
+            trackedTickers: user?.trackedTickers ?? [],
           },
         }),
       });
@@ -115,13 +133,29 @@ export function AiChatbot() {
       const data = await response.json();
 
       if (data.updates) {
-        const partial = applyFeedUpdates(user, data.updates as OasisFeedUpdate);
+        const updates = data.updates as OasisFeedUpdate;
+
+        // Platform side-effects (not part of user profile):
+        // - `xUsername` updates the X Voices integration stored in localStorage.
+        if (updates.xUsername) {
+          try {
+            const normalized = resolveXHandleAlias(updates.xUsername.replace(/^@/, "").trim());
+            localStorage.setItem("oasis-x-username", normalized);
+            window.dispatchEvent(
+              new CustomEvent("oasis-x-username-updated", { detail: { xUsername: normalized } })
+            );
+          } catch {
+            // Ignore localStorage failures; the chat still returns AI text.
+          }
+        }
+
+        const partial = applyFeedUpdates(user, updates);
         if (Object.keys(partial).length > 0) {
           updateUser(partial);
         }
       }
 
-      if (!response.ok && !data.text) {
+      if (!response.ok) {
         throw new Error(data.details || data.error || "Request failed");
       }
 

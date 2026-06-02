@@ -8,11 +8,17 @@ import {
   compactXPostText,
   formatXSource,
   isXPostUrl,
+  isXStatusUrl,
   resolveXHandle,
 } from "@/lib/x-signal-format";
+import { sanitizeFeedText } from "@/lib/text-sanitize";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+const NEWS_RESPONSE_CACHE = new Map<string, { body: object; expires: number }>();
+const NEWS_CACHE_TTL_MS = 90_000;
+const MAX_FEEDS_PER_REQUEST = 18;
 
 type RSSSignal = {
   id: string;
@@ -82,21 +88,23 @@ function normalizeXSignal(signal: RSSSignal): RSSSignal {
 
 async function fetchSocialXSignals(): Promise<RSSSignal[]> {
   const posts = await fetchXPosts("markets", undefined, 14);
-  return posts.map((post) => {
-    const handle = post.author.replace(/^@/, "");
-    return normalizeXSignal({
-      id: post.id,
-      title: post.text,
-      source: formatXSource(handle),
-      sourceUrl: post.url,
-      date: formatPublishedAt(post.createdAt) || "—",
-      publishedAt: post.createdAt,
-      category: "Social",
-      summary: "",
-      xHandle: handle,
-      isXPost: true,
+  return posts
+    .filter((post) => isXStatusUrl(post.url))
+    .map((post) => {
+      const handle = post.author.replace(/^@/, "");
+      return normalizeXSignal({
+        id: post.id,
+        title: post.text,
+        source: formatXSource(handle),
+        sourceUrl: post.url,
+        date: formatPublishedAt(post.createdAt) || "—",
+        publishedAt: post.createdAt,
+        category: "Social",
+        summary: "",
+        xHandle: handle,
+        isXPost: true,
+      });
     });
-  });
 }
 
 function googleNewsFeed(
@@ -216,8 +224,9 @@ async function fetchFeed(feed: FeedConfig): Promise<RSSSignal[]> {
         "User-Agent": "Mozilla/5.0 (compatible; OasisBot/1.0)",
         Accept: "application/rss+xml, application/xml, text/xml, */*",
       },
-      next: { revalidate: 90 },
-      cache: "no-store",
+      next: { revalidate: 180 },
+      cache: "force-cache",
+      signal: AbortSignal.timeout(3500),
     });
 
     if (!res.ok) return [];
@@ -238,9 +247,7 @@ async function fetchFeed(feed: FeedConfig): Promise<RSSSignal[]> {
           date: formatPublishedAt(published) || "—",
           publishedAt: toIsoOrNull(published),
           category: feed.category,
-          summary:
-            item.description.slice(0, 200) +
-            (item.description.length > 200 ? "..." : ""),
+          summary: sanitizeFeedText(item.description, 200),
         };
       });
   } catch {
@@ -263,7 +270,51 @@ function diversifyBySource(signals: RSSSignal[], maxPerSource = 5): RSSSignal[] 
   return out;
 }
 
+function scoreSignal(s: RSSSignal): number {
+  const title = (s.title || "").toLowerCase();
+  const cat = (s.category || "").toLowerCase();
+  const src = (s.source || "").toLowerCase();
+
+  let score = 0;
+
+  // Prefer higher-signal categories.
+  if (/(m&a|deal)/.test(cat)) score += 8;
+  if (/(venture|raises|funding)/.test(cat)) score += 7;
+  if (/(macro)/.test(cat)) score += 6;
+  if (/(geopolit)/.test(cat)) score += 6;
+  if (/(energy)/.test(cat)) score += 5;
+  if (/(markets)/.test(cat)) score += 4;
+  if (/(social)/.test(cat)) score += 4;
+
+  // Keywords that tend to matter.
+  if (/\b(raised|funding|series|seed|valuation|ipo)\b/.test(title)) score += 6;
+  if (/\b(merger|acquisition|buyout|takeover)\b/.test(title)) score += 6;
+  if (/\b(earnings|guidance|beat|miss|margin)\b/.test(title)) score += 4;
+  if (/\b(fed|cpi|inflation|jobs|rate|yields)\b/.test(title)) score += 4;
+  if (/\b(oil|brent|wti|opec|lng|pipeline)\b/.test(title)) score += 3;
+  if (/\b(ai|llm|chip|semiconductor|nvidia)\b/.test(title)) score += 2;
+
+  // Prefer wires/institutional sources when present.
+  if (/(reuters|wall street journal|financial times|bloomberg)/.test(src)) score += 3;
+
+  // If the title contains numbers, it’s often more actionable.
+  if (/\b\d+(\.\d+)?\b/.test(title)) score += 1;
+
+  return score;
+}
+
 export async function GET(req: Request) {
+  const cacheKey = new URL(req.url).search || "__default__";
+  const cached = NEWS_RESPONSE_CACHE.get(cacheKey);
+  if (cached && cached.expires > Date.now()) {
+    return NextResponse.json(cached.body, {
+      headers: {
+        "Cache-Control": "public, s-maxage=90, stale-while-revalidate=180",
+        "X-Oasis-Cache": "HIT",
+      },
+    });
+  }
+
   const { searchParams } = new URL(req.url);
   const category = searchParams.get("category");
   const interestsParam = searchParams.get("interests");
@@ -307,9 +358,9 @@ export async function GET(req: Request) {
   });
 
   const allFeeds = [...regionalFeeds, ...personalizedFeeds, ...GLOBAL_NEWS_FEEDS];
-  const uniqueFeeds = allFeeds.filter(
-    (feed, idx, arr) => arr.findIndex((f) => f.url === feed.url) === idx
-  );
+  const uniqueFeeds = allFeeds
+    .filter((feed, idx, arr) => arr.findIndex((f) => f.url === feed.url) === idx)
+    .slice(0, MAX_FEEDS_PER_REQUEST);
 
   const results = await Promise.allSettled(uniqueFeeds.map((feed) => fetchFeed(feed)));
 
@@ -340,10 +391,12 @@ export async function GET(req: Request) {
     );
   }
 
+  // Sort by recency first, then signal quality score.
   signals.sort((a, b) => {
     const aT = a.publishedAt ? new Date(a.publishedAt).getTime() : 0;
     const bT = b.publishedAt ? new Date(b.publishedAt).getTime() : 0;
-    return bT - aT;
+    if (bT !== aT) return bT - aT;
+    return scoreSignal(b) - scoreSignal(a);
   });
 
   const seen = new Set<string>();
@@ -359,13 +412,25 @@ export async function GET(req: Request) {
   signals.sort((a, b) => {
     const aT = a.publishedAt ? new Date(a.publishedAt).getTime() : 0;
     const bT = b.publishedAt ? new Date(b.publishedAt).getTime() : 0;
-    return bT - aT;
+    if (bT !== aT) return bT - aT;
+    return scoreSignal(b) - scoreSignal(a);
   });
 
-  return NextResponse.json({
+  const body = {
     signals: signals.slice(0, 50),
     count: signals.length,
     timestamp: new Date().toISOString(),
     personalized: interests.length > 0 || !!country || markets.length > 0,
+  };
+
+  NEWS_RESPONSE_CACHE.set(cacheKey, {
+    body,
+    expires: Date.now() + NEWS_CACHE_TTL_MS,
+  });
+
+  return NextResponse.json(body, {
+    headers: {
+      "Cache-Control": "public, s-maxage=90, stale-while-revalidate=180",
+    },
   });
 }

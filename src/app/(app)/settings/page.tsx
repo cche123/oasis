@@ -18,6 +18,7 @@ import {
 import { motion, Variants } from "framer-motion";
 import { useUser } from "@/components/user-context";
 import { resolveLocation } from "@/lib/locations";
+import { resolveXHandleAlias } from "@/lib/x-handle-aliases";
 
 export default function SettingsPage() {
   const { theme, setTheme } = useTheme();
@@ -62,7 +63,16 @@ export default function SettingsPage() {
 
   const handleSaveIntegrations = () => {
     try {
-      localStorage.setItem("oasis-x-username", xUsername.trim());
+      const normalized = xUsername.trim()
+        ? resolveXHandleAlias(xUsername.replace(/^@/, "").trim())
+        : "";
+      if (normalized) {
+        localStorage.setItem("oasis-x-username", normalized);
+        setXUsername(normalized);
+      } else {
+        localStorage.removeItem("oasis-x-username");
+      }
+      window.dispatchEvent(new CustomEvent("oasis-x-username-updated"));
     } catch {}
     setIntegrationsSaved(true);
     setTimeout(() => setIntegrationsSaved(false), 2000);

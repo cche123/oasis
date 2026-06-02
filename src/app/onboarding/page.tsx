@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowRight, Check, User, Plus, AlertCircle } from "lucide-react";
+import { ArrowRight, Check, User, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { useUser } from "@/components/user-context";
@@ -10,21 +10,30 @@ import { resolveLocation, FALLBACK_MARKETS, LOCATION_EXAMPLES } from "@/lib/loca
 import { LocationExamples, LocationResolved } from "@/components/location-display";
 
 const INTERESTS = [
-  "Artificial Intelligence",
-  "M&A Activity",
-  "Japan Markets",
+  "Semiconductors",
   "Defense Tech",
-  "SaaS Consolidation",
+  "AI-enabled Roll-ups",
+  "M&A Activity",
+  "Private Equity",
+  "Venture Capital",
   "Geopolitics",
-  "Energy Infrastructure",
-  "Weight Loss Drugs",
+  "Pharmaceuticals",
+  "Energy & Oil",
+  "Natural Gas & LNG",
+  "Gold & Precious Metals",
+  "Macro Economics",
+  "Japan Markets",
+  "India Markets",
+  "China Markets",
+  "European Markets",
+  "Middle East Markets",
+  "Oceanic Tech",
   "Supply Chain Shift",
   "Crypto & Digital Assets",
-  "European Markets",
   "Sovereign Wealth Funds",
 ];
 
-const INTERNATIONAL_MARKETS = FALLBACK_MARKETS;
+const INTERNATIONAL_MARKETS = FALLBACK_MARKETS.filter((m) => m !== "Emerging Markets");
 
 function OnboardingContent() {
   const searchParams = useSearchParams();
@@ -41,13 +50,13 @@ function OnboardingContent() {
   const [selected, setSelected] = useState<string[]>([]);
   const [location, setLocation] = useState("");
   const [selectedMarkets, setSelectedMarkets] = useState<string[]>([]);
-  const [customInterest, setCustomInterest] = useState("");
   const [locationWarning, setLocationWarning] = useState(false);
   const { setUser } = useUser();
   const hasStartedCalibration = useRef(false);
 
   const resolved = resolveLocation(location);
   const musicDispatchedRef = useRef(false);
+  const musicDispatchedStep2Ref = useRef(false);
 
   // Sync step from browser back/forward
   useEffect(() => {
@@ -59,6 +68,24 @@ function OnboardingContent() {
     if (stepFromUrl !== 1 || musicDispatchedRef.current) return;
     musicDispatchedRef.current = true;
     window.dispatchEvent(new Event("oasis-music-start"));
+  }, [stepFromUrl]);
+
+  // Some browsers will block the initial autoplay; dispatch again right as
+  // we transition into the "questions" black screen (step 2) so it reliably
+  // starts playing without the user needing to type/pause/unpause.
+  useEffect(() => {
+    if (stepFromUrl !== 2) {
+      musicDispatchedStep2Ref.current = false;
+      return;
+    }
+    if (musicDispatchedStep2Ref.current) return;
+    musicDispatchedStep2Ref.current = true;
+
+    const t = window.setTimeout(() => {
+      window.dispatchEvent(new Event("oasis-music-start"));
+    }, 350);
+
+    return () => window.clearTimeout(t);
   }, [stepFromUrl]);
 
   // Lock page scroll — content stays fixed
@@ -104,14 +131,6 @@ function OnboardingContent() {
     );
   };
 
-  const addCustomInterest = () => {
-    const trimmed = customInterest.trim();
-    if (trimmed && !selected.includes(trimmed)) {
-      setSelected((prev) => [...prev, trimmed]);
-      setCustomInterest("");
-    }
-  };
-
   const handleNext = () => {
     if (step < totalSteps) goToStep(step + 1);
   };
@@ -152,14 +171,17 @@ function OnboardingContent() {
   };
 
   useEffect(() => {
-    if (step === totalSteps && !hasStartedCalibration.current) {
-      hasStartedCalibration.current = true;
-      setUser(buildProfile());
-      const timer = setTimeout(() => {
-        router.replace("/dashboard");
-      }, 3500);
-      return () => clearTimeout(timer);
+    if (step !== totalSteps) {
+      hasStartedCalibration.current = false;
+      return;
     }
+    if (hasStartedCalibration.current) return;
+    hasStartedCalibration.current = true;
+    setUser(buildProfile());
+    const timer = setTimeout(() => {
+      router.replace("/dashboard");
+    }, 2800);
+    return () => clearTimeout(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step]);
 
@@ -254,7 +276,7 @@ function OnboardingContent() {
                     What interests you, {name || "friend"}?
                   </h1>
                   <p className="text-white/40 text-sm max-w-sm mx-auto">
-                    Select topics or add your own. Oasis AI will curate your feed from live news.
+                    Select from curated market topics Oasis can track with live data.
                   </p>
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
@@ -276,34 +298,6 @@ function OnboardingContent() {
                       </button>
                     );
                   })}
-                  {selected
-                    .filter((s) => !INTERESTS.includes(s))
-                    .map((interest) => (
-                      <button
-                        key={interest}
-                        onClick={() => toggleInterest(interest)}
-                        className="flex items-center justify-between px-4 py-3 border text-sm font-medium transition-all duration-300 bg-white text-black border-white"
-                      >
-                        <span className="truncate text-left">{interest}</span>
-                        <Check className="w-3.5 h-3.5 shrink-0 ml-2" />
-                      </button>
-                    ))}
-                </div>
-                <div className="flex items-center gap-2 max-w-sm mx-auto">
-                  <input
-                    type="text"
-                    value={customInterest}
-                    onChange={(e) => setCustomInterest(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && addCustomInterest()}
-                    placeholder="Add your own interest (e.g. AI roll-ups)..."
-                    className="flex-1 bg-transparent border-b border-white/15 focus:border-white/50 px-2 py-3 text-sm font-light focus:outline-none transition-colors placeholder:text-white/25"
-                  />
-                  <button
-                    onClick={addCustomInterest}
-                    className="w-8 h-8 border border-white/20 flex items-center justify-center hover:border-white/60 transition-colors"
-                  >
-                    <Plus className="w-4 h-4 text-white/50" />
-                  </button>
                 </div>
               </motion.div>
             )}
@@ -420,7 +414,7 @@ function OnboardingContent() {
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: [0, 0, 1] }}
-                  transition={{ times: [0, 0.85, 1], duration: 3.5, ease: "easeInOut" }}
+                  transition={{ times: [0, 0.75, 1], duration: 2.8, ease: "easeInOut" }}
                   className="fixed inset-0 bg-white pointer-events-none z-[100]"
                 />
               </motion.div>

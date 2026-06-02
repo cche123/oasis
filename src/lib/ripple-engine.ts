@@ -1,3 +1,5 @@
+import { resolveWaveImpacts } from "@/lib/wave-stock-resolver";
+
 export type RippleCategory =
   | "geopolitical"
   | "natural_disaster"
@@ -15,6 +17,15 @@ export type MarketImpact = {
   instrument: "call" | "put" | "equity" | "etf";
   thesis: string;
   confidence: "high" | "medium" | "low";
+  /**
+   * Optional deep-dive fields surfaced in the Wave UI. These are generated
+   * algorithmically from the headline triggers + category to keep results
+   * consistent and non-hallucinatory.
+   */
+  drivers?: string[];
+  catalysts?: string[];
+  risks?: string[];
+  playbook?: string;
 };
 
 export type RippleAnalysis = {
@@ -110,21 +121,22 @@ const RULES: Rule[] = [
   },
 ];
 
-const REGION_BOOSTS: Record<string, { pattern: RegExp; tickers: string[] }[]> = {
-  USA: [
-    { pattern: /\b(tornado|hurricane|gulf|texas|florida|california)\b/i, tickers: ["ALL", "HD", "URI"] },
-    { pattern: /\b(fed|treasury|congress|white house)\b/i, tickers: ["TLT", "XLF", "SPY"] },
-  ],
-  "Middle East": [
-    { pattern: /\b(israel|iran|gaza|red sea|hormuz|saudi|gulf)\b/i, tickers: ["XLE", "LMT", "GLD"] },
-  ],
-  Japan: [
-    { pattern: /\b(japan|tokyo|osaka|typhoon|earthquake|nikkei)\b/i, tickers: ["EWJ", "TM"] },
-  ],
-};
-
 function normalize(text: string) {
   return text.toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+function getRuleMatches(rule: Rule, text: string): { score: number; triggers: string[] } {
+  const triggers: string[] = [];
+
+  for (const pattern of rule.patterns) {
+    // Avoid RegExp lastIndex side-effects by re-creating without global flag.
+    const flags = pattern.flags.replace(/g/g, "");
+    const re = new RegExp(pattern.source, flags);
+    const m = re.exec(text);
+    if (m?.[0]) triggers.push(m[0]);
+  }
+
+  return { score: triggers.length, triggers };
 }
 
 export function classifyRipple(text: string): RippleCategory {
@@ -137,58 +149,45 @@ export function classifyRipple(text: string): RippleCategory {
 
 export function analyzeRipple(
   headline: string,
-  opts?: { region?: string; interests?: string[] }
+  opts?: { region?: string; interests?: string[]; macroTags?: string[] }
 ): RippleAnalysis {
   const text = headline.trim();
   const t = normalize(text);
-  const rule =
-    RULES.find((r) => r.patterns.some((p) => p.test(t))) ??
-    RULES.find((r) => r.category === "macro")!;
+  const scored = RULES.map((r) => ({ rule: r, ...getRuleMatches(r, t) }));
+  scored.sort((a, b) => b.score - a.score);
 
-  const impactsMap = new Map<string, MarketImpact>();
-  for (const impact of rule.impacts) {
-    impactsMap.set(impact.ticker, { ...impact });
+  const top = scored.find((s) => s.score > 0) ?? scored.find((s) => s.rule.category === "macro")!;
+  const categoryRule = top?.rule ?? RULES.find((r) => r.category === "macro")!;
+
+  const triggers = top.triggers.slice(0, 4).map((x) => x.replace(/\s+/g, " "));
+  const macroTags = opts?.macroTags?.length ? opts.macroTags : triggers;
+
+  // Headline-specific S&P / NASDAQ equities (3–5 unique, evidence-backed).
+  let impacts = resolveWaveImpacts(text, macroTags);
+
+  if (opts?.region) {
+    impacts = impacts.map((impact) => ({
+      ...impact,
+      thesis: `${impact.thesis} Regional lens: ${opts.region}.`,
+    }));
   }
-
-  const regionRules = REGION_BOOSTS[opts?.region ?? ""] ?? [];
-  for (const boost of regionRules) {
-    if (boost.pattern.test(t)) {
-      for (const ticker of boost.tickers) {
-        const existing = impactsMap.get(ticker);
-        if (existing && existing.confidence === "medium") {
-          impactsMap.set(ticker, { ...existing, confidence: "high" });
-        }
-      }
-    }
-  }
-
-  if (opts?.interests?.length) {
-    for (const interest of opts.interests) {
-      const i = interest.toLowerCase();
-      if (i.includes("defense") && impactsMap.has("LMT")) {
-        const x = impactsMap.get("LMT")!;
-        impactsMap.set("LMT", { ...x, confidence: "high" });
-      }
-      if (i.includes("energy") && impactsMap.has("XLE")) {
-        const x = impactsMap.get("XLE")!;
-        impactsMap.set("XLE", { ...x, confidence: "high" });
-      }
-    }
-  }
-
-  const impacts = Array.from(impactsMap.values()).slice(0, 6);
 
   return {
     headline: text,
-    category: rule.category,
-    categoryLabel: rule.label,
-    summary: buildSummary(rule.category, text),
+    category: categoryRule.category,
+    categoryLabel: categoryRule.label,
+    summary: buildSummary(categoryRule.category, text, triggers, opts?.region),
     impacts,
     scannedAt: new Date().toISOString(),
   };
 }
 
-function buildSummary(category: RippleCategory, headline: string): string {
+function buildSummary(
+  category: RippleCategory,
+  headline: string,
+  triggers: string[],
+  region?: string
+): string {
   const base: Record<RippleCategory, string> = {
     geopolitical: "Conflict and sanctions reprice defense, energy, and safe-haven assets.",
     natural_disaster: "Physical damage shifts capital toward rebuild plays and away from regional insurers.",
@@ -197,7 +196,9 @@ function buildSummary(category: RippleCategory, headline: string): string {
     macro: "Policy and growth signals move rates, banks, and growth vs. value.",
     cyber: "Infrastructure breaches pull forward cybersecurity and resilience spending.",
   };
-  return `${base[category]} Scanned: "${headline.slice(0, 120)}${headline.length > 120 ? "…" : ""}"`;
+  const triggerBit = triggers.length ? ` Triggers: ${triggers.join(", ")}.` : "";
+  const regionBit = region ? ` Region lens: ${region}.` : "";
+  return `${base[category]}${triggerBit}${regionBit} Scanned: "${headline.slice(0, 120)}${headline.length > 120 ? "…" : ""}"`;
 }
 
 export const MACRO_SCAN_QUERIES = [

@@ -32,7 +32,9 @@ export async function GET(req: Request) {
 
   try {
     const newsRes = await fetch(`${origin}/api/news?${newsQs.toString()}`, {
-      cache: "no-store",
+      next: { revalidate: 90 },
+      cache: "force-cache",
+      signal: AbortSignal.timeout(4000),
     });
     if (newsRes.ok) {
       const data = await newsRes.json();
@@ -40,6 +42,22 @@ export async function GET(req: Request) {
     }
   } catch {
     /* empty */
+  }
+
+  if (signals.length === 0) {
+    try {
+      const fallbackRes = await fetch(`${origin}/api/news`, {
+        next: { revalidate: 90 },
+        cache: "force-cache",
+        signal: AbortSignal.timeout(4000),
+      });
+      if (fallbackRes.ok) {
+        const data = await fallbackRes.json();
+        signals = data.signals || [];
+      }
+    } catch {
+      /* empty */
+    }
   }
 
   const narratives = buildPulseNarratives(signals);

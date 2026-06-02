@@ -91,7 +91,7 @@ export function OasisIntro() {
       </section>
 
       {/* Story sections — scroll over fixed video */}
-      {INTRO_SECTIONS.map((section, i) => (
+      {INTRO_SECTIONS.map((section) => (
         <section
           key={section.id}
           className="relative z-10 min-h-screen flex items-center px-8 md:px-16 py-24"

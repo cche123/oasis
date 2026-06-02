@@ -1,3 +1,5 @@
+import { resolveXHandleAlias } from "@/lib/x-handle-aliases";
+
 export type XTopic =
   | "all"
   | "ai"
@@ -14,7 +16,7 @@ export type XTopicConfig = {
   handles: string[];
 };
 
-/** Curated X accounts by topic — not limited to 3 handles */
+/** Verified market-signal accounts — individuals and aggregators that post linkable status URLs. */
 export const X_TOPIC_VOICES: XTopicConfig[] = [
   {
     id: "all",
@@ -26,15 +28,13 @@ export const X_TOPIC_VOICES: XTopicConfig[] = [
     label: "AI & Tech",
     handles: [
       "sama",
-      "elonmusk",
       "demishassabis",
       "ylecun",
-      "GaryMarcus",
       "DrJimFan",
       "emollick",
       "gdb",
       "karpathy",
-      "AnthropicAI",
+      "GaryMarcus",
     ],
   },
   {
@@ -56,12 +56,11 @@ export const X_TOPIC_VOICES: XTopicConfig[] = [
     label: "VC & Raises",
     handles: [
       "joshkushner",
-      "rabois",
-      "cdixon",
       "a16z",
       "sequoia",
+      "benchmark",
+      "KhoslaVentures",
       "sarahguo",
-      "Jason",
       "bgurley",
       "semil",
       "HarryStebbings",
@@ -73,12 +72,8 @@ export const X_TOPIC_VOICES: XTopicConfig[] = [
     handles: [
       "DeItaone",
       "unusual_whales",
-      "WallStJesus",
-      "zerohedge",
-      "business",
-      "FT",
-      "Reuters",
-      "DealBook",
+      "StockMKTNewz",
+      "Fxhedgers",
     ],
   },
   {
@@ -86,13 +81,11 @@ export const X_TOPIC_VOICES: XTopicConfig[] = [
     label: "Macro & Markets",
     handles: [
       "DeItaone",
-      "markets",
-      "Reuters",
-      "WSJ",
-      "Bloomberg",
+      "unusual_whales",
       "federalreserve",
       "LizAnnSonders",
       "NorthmanTrader",
+      "Fxhedgers",
     ],
   },
   {
@@ -101,7 +94,6 @@ export const X_TOPIC_VOICES: XTopicConfig[] = [
     handles: [
       "saylor",
       "VitalikButerin",
-      "cz_binance",
       "APompliano",
       "lookonchain",
       "WuBlockchain",
@@ -114,9 +106,9 @@ export const X_TOPIC_VOICES: XTopicConfig[] = [
       "DeItaone",
       "unusual_whales",
       "zerohedge",
-      "markets",
       "StockMKTNewz",
       "Fxhedgers",
+      "NorthmanTrader",
     ],
   },
 ];
@@ -124,6 +116,7 @@ export const X_TOPIC_VOICES: XTopicConfig[] = [
 export function getHandlesForTopic(topic: XTopic, userHandle?: string): string[] {
   const cfg = X_TOPIC_VOICES.find((t) => t.id === topic);
   let handles = cfg?.handles.length ? [...cfg.handles] : [];
+  handles = handles.map((h) => resolveXHandleAlias(h));
 
   if (topic === "all") {
     const seen = new Set<string>();
@@ -131,16 +124,18 @@ export function getHandlesForTopic(topic: XTopic, userHandle?: string): string[]
     for (const t of X_TOPIC_VOICES) {
       if (t.id === "all") continue;
       for (const h of t.handles) {
-        if (!seen.has(h.toLowerCase())) {
-          seen.add(h.toLowerCase());
-          handles.push(h);
+        const resolved = resolveXHandleAlias(h);
+        const key = resolved.toLowerCase();
+        if (!seen.has(key)) {
+          seen.add(key);
+          handles.push(resolved);
         }
       }
     }
   }
 
   if (userHandle) {
-    const u = userHandle.replace("@", "");
+    const u = resolveXHandleAlias(userHandle);
     handles = [u, ...handles.filter((h) => h.toLowerCase() !== u.toLowerCase())];
   }
 

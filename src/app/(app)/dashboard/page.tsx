@@ -10,7 +10,9 @@ import { buildNewsQueryParams } from "@/lib/news-params";
 import { Sparkles, MapPin, Zap } from "lucide-react";
 import { XVoices } from "@/components/x-voices";
 import { LocationBadge } from "@/components/location-display";
+import { InternationalMarketPicker } from "@/components/international-market-picker";
 import type { PulseNarrative } from "@/lib/pulse-engine";
+import { cachedFetchJson, readCachedJson } from "@/lib/client-fetch-cache";
 
 const containerVars: Variants = {
   hidden: { opacity: 0 },
@@ -35,6 +37,12 @@ type LiveSignal = {
   summary: string;
   xHandle?: string;
   isXPost?: boolean;
+};
+
+type TickerQuote = {
+  symbol: string;
+  price: number;
+  change: number;
 };
 
 function SignalHeadline({ signal }: { signal: LiveSignal }) {
@@ -70,6 +78,7 @@ export default function DashboardPage() {
   const [loadingSignals, setLoadingSignals] = useState(true);
   const [feedPulse, setFeedPulse] = useState(false);
   const [pulsePreview, setPulsePreview] = useState<PulseNarrative[]>([]);
+  const [trackedQuotes, setTrackedQuotes] = useState<TickerQuote[]>([]);
 
   const regionLabel = user.resolvedLocation?.valid
     ? user.resolvedLocation.displayName
@@ -98,8 +107,16 @@ export default function DashboardPage() {
         })
       : mockThemes.filter((t) => t.isSaved);
 
+  const dashboardNewsKey = [
+    "dashboard:news",
+    user.interests.join("|"),
+    user.location,
+    user.resolvedLocation?.countryCode ?? "",
+    user.internationalMarkets.join("|"),
+  ].join(":");
+
   const fetchLiveSignals = useCallback(async () => {
-    setLoadingSignals(true);
+    if (!readCachedJson(dashboardNewsKey)) setLoadingSignals(true);
     try {
       const qs = buildNewsQueryParams({
         interests: user.interests,
@@ -107,30 +124,35 @@ export default function DashboardPage() {
         resolvedLocation: user.resolvedLocation,
         markets: user.internationalMarkets,
       });
-      const res = await fetch(`/api/news${qs}`, { cache: "no-store" });
-      if (!res.ok) throw new Error("Failed to fetch news");
-      const data = await res.json();
-      if (data.signals?.length > 0) {
-        setLiveSignals(data.signals);
+      let data = await cachedFetchJson<{ signals?: LiveSignal[] }>(
+        dashboardNewsKey,
+        `/api/news${qs}`
+      );
+      if (!data.signals?.length) {
+        data = await cachedFetchJson<{ signals?: LiveSignal[] }>(
+          "dashboard:news:global",
+          "/api/news"
+        );
       }
+      setLiveSignals(data.signals ?? []);
     } catch (err) {
       console.warn("Live news fetch failed:", err);
     } finally {
       setLoadingSignals(false);
     }
   }, [
+    dashboardNewsKey,
     user.interests,
     user.location,
     user.resolvedLocation,
     user.internationalMarkets,
-    user.feedVersion,
   ]);
 
   useEffect(() => {
     fetchLiveSignals();
     const interval = setInterval(fetchLiveSignals, 3 * 60_000);
     return () => clearInterval(interval);
-  }, [fetchLiveSignals]);
+  }, [fetchLiveSignals, user.feedVersion]);
 
   useEffect(() => {
     if (!user.feedVersion) return;
@@ -146,11 +168,27 @@ export default function DashboardPage() {
       resolvedLocation: user.resolvedLocation,
       markets: user.internationalMarkets,
     });
-    fetch(`/api/pulse?${qs.replace("?", "")}`)
-      .then((r) => r.json())
+    const pulseKey = `dashboard:pulse:${dashboardNewsKey}`;
+    cachedFetchJson<{ narratives?: PulseNarrative[] }>(
+      pulseKey,
+      `/api/pulse?${qs.replace("?", "")}`
+    )
       .then((d) => setPulsePreview((d.narratives || []).slice(0, 5)))
       .catch(() => {});
-  }, [user.interests, user.location, user.resolvedLocation, user.internationalMarkets, user.feedVersion]);
+  }, [dashboardNewsKey, user.interests, user.location, user.resolvedLocation, user.internationalMarkets, user.feedVersion]);
+
+  useEffect(() => {
+    const symbols = (user.trackedTickers ?? []).map((s) => s.trim()).filter(Boolean);
+    if (symbols.length === 0) {
+      setTrackedQuotes([]);
+      return;
+    }
+    const query = encodeURIComponent(symbols.join(","));
+    fetch(`/api/market-data?symbols=${query}`)
+      .then((r) => r.json())
+      .then((d) => setTrackedQuotes((d.tickers || []).slice(0, 8)))
+      .catch(() => setTrackedQuotes([]));
+  }, [user.trackedTickers, user.feedVersion]);
 
   const locTerms = [
     user.location,
@@ -236,6 +274,55 @@ export default function DashboardPage() {
           </div>
         </div>
       </motion.header>
+
+      {(user.trackedTickers?.length ?? 0) > 0 && (
+        <motion.section
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-12 border border-border p-5 bg-card/40"
+        >
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-foreground">
+              Tracked Symbols
+            </h2>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-widest">
+              Ask Oasis AI to add/remove tickers
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {(user.trackedTickers ?? []).map((symbol) => {
+              const quote = trackedQuotes.find((q) => q.symbol === symbol);
+              return (
+                <span
+                  key={symbol}
+                  className="inline-flex items-center gap-2 border border-border px-2.5 py-1 text-xs"
+                >
+                  <span className="font-mono text-foreground">{symbol}</span>
+                  {quote ? (
+                    <>
+                      <span className="text-muted-foreground">{quote.price.toFixed(2)}</span>
+                      <span className={quote.change < 0 ? "text-red-400" : "text-emerald-400"}>
+                        {quote.change > 0 ? "+" : ""}
+                        {quote.change.toFixed(2)}%
+                      </span>
+                    </>
+                  ) : (
+                    <span className="text-muted-foreground">—</span>
+                  )}
+                </span>
+              );
+            })}
+          </div>
+        </motion.section>
+      )}
+
+      <motion.section
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="mb-10 border border-border p-6 bg-card/50 rounded-2xl"
+      >
+        <InternationalMarketPicker />
+      </motion.section>
 
       <motion.section
         animate={feedPulse ? { boxShadow: "0 0 0 2px rgba(255,255,255,0.15)" } : { boxShadow: "0 0 0 0px transparent" }}

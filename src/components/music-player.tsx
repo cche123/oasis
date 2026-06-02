@@ -136,8 +136,9 @@ export function MusicPlayer({ children }: { children?: ReactNode }) {
   const [playing, setPlaying] = useState(false);
   const [armed, setArmed] = useState(false);
   const [playerReady, setPlayerReady] = useState(false);
-
-  trackIndexRef.current = trackIndex;
+  useEffect(() => {
+    trackIndexRef.current = trackIndex;
+  }, [trackIndex]);
 
   const track: PlaylistTrack = OASIS_PLAYLIST[trackIndex];
   const barVisible = armed || playerReady;

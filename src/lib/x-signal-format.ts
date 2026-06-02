@@ -6,6 +6,10 @@ export function isXPostUrl(url: string): boolean {
   return X_HOSTS.test(url);
 }
 
+export function isXStatusUrl(url: string): boolean {
+  return /(?:x\.com|twitter\.com)\/[^/]+\/status\/\d+/i.test(url);
+}
+
 /** Extract handle from x.com/user/status/... or twitter.com/user/... */
 export function extractXHandleFromUrl(url: string): string | null {
   try {
@@ -48,7 +52,7 @@ export function resolveXHandle(url: string, title: string, fallback?: string): s
 
 /** Short headline — first sentence or line, no trailing platform junk */
 export function compactXPostText(text: string, maxLen = 96): string {
-  let t = text
+  const t = text
     .replace(/\s*[-–—]\s*(twitter|x)\.com\s*$/i, "")
     .replace(/\s*[-–—]\s*@?[A-Za-z0-9_]{1,15}\s+on\s+X\s*$/i, "")
     .replace(/https?:\/\/\S+/g, "")
