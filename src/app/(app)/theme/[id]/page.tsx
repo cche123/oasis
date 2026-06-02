@@ -8,6 +8,7 @@ import Link from "next/link";
 import { motion, Variants } from "framer-motion";
 import { useUser } from "@/components/user-context";
 import { buildNewsQueryParams } from "@/lib/news-params";
+import { resolveSavedProfile } from "@/lib/saved-theme-registry";
 import { XVoices } from "@/components/x-voices";
 
 const sectionVariants: Variants = {
@@ -67,6 +68,7 @@ export default function ThemeDetailPage() {
     mockTheme?.subtitle ||
     "AI-curated intelligence from live news sources — updated continuously.";
   const category = mockTheme?.category || "Custom Topic";
+  const profile = resolveSavedProfile(id, mockTheme);
 
   const fetchSignals = useCallback(async () => {
     setLoading(true);
@@ -80,7 +82,7 @@ export default function ThemeDetailPage() {
       const res = await fetch(`/api/news${qs}`);
       if (!res.ok) throw new Error("news failed");
       const data = await res.json();
-      const keys = themeKeywords(id, title);
+      const keys = profile.keywords.length > 0 ? profile.keywords : themeKeywords(id, title);
       const filtered = (data.signals || []).filter((s: LiveSignal) => {
         const text = `${s.title} ${s.summary}`.toLowerCase();
         return (
@@ -95,7 +97,7 @@ export default function ThemeDetailPage() {
     } finally {
       setLoading(false);
     }
-  }, [id, title, user]);
+  }, [id, title, user, profile.keywords]);
 
   useEffect(() => {
     fetchSignals();
@@ -162,12 +164,7 @@ export default function ThemeDetailPage() {
               Overview
             </h2>
             <p className="font-serif text-xl leading-[1.8] text-foreground font-light">
-              Oasis maps live headlines for <strong>{title}</strong> to market narratives and
-              equities on{" "}
-              <Link href="/pulse" className="underline underline-offset-4">
-                Pulse
-              </Link>
-              . Every link below is sourced from current RSS — no static placeholders.
+              {profile.thesis}
             </p>
           </motion.section>
 
@@ -181,25 +178,16 @@ export default function ThemeDetailPage() {
             <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-foreground mb-6 flex items-center gap-3">
               <TrendingUp className="w-4 h-4" /> Why this matters
             </h2>
+            <p className="text-sm text-muted-foreground mb-5 leading-relaxed">{profile.mechanism}</p>
             <ul className="space-y-5">
-              <li className="flex items-start gap-4">
-                <span className="font-serif italic text-muted-foreground text-xl leading-none mt-1">
-                  I.
-                </span>
-                <p className="font-serif text-lg leading-relaxed text-foreground">
-                  Narrative velocity in {title} is a leading indicator for sector rotation and
-                  single-name dispersion.
-                </p>
-              </li>
-              <li className="flex items-start gap-4">
-                <span className="font-serif italic text-muted-foreground text-xl leading-none mt-1">
-                  II.
-                </span>
-                <p className="font-serif text-lg leading-relaxed text-foreground">
-                  Cross-asset transmission (rates, FX, credit) often shows up in headlines before
-                  price.
-                </p>
-              </li>
+              {profile.whatToWatch.map((item, i) => (
+                <li key={i} className="flex items-start gap-4">
+                  <span className="font-serif italic text-muted-foreground text-xl leading-none mt-1">
+                    {["I", "II", "III", "IV"][i] ?? String(i + 1)}.
+                  </span>
+                  <p className="font-serif text-lg leading-relaxed text-foreground">{item}</p>
+                </li>
+              ))}
             </ul>
           </motion.section>
 
