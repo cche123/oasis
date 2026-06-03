@@ -1,10 +1,14 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { ExternalLink, AtSign } from "lucide-react";
 import { motion } from "framer-motion";
 import type { XPost } from "@/lib/x-types";
-import { X_TOPIC_VOICES, type XTopic } from "@/lib/x-voices-config";
+import {
+  X_TOPIC_VOICES,
+  resolveXTopicForTheme,
+  type XTopic,
+} from "@/lib/x-voices-config";
 import { cn } from "@/lib/utils";
 import { formatPublishedAt } from "@/lib/publish-time";
 import { isXStatusUrl } from "@/lib/x-signal-format";
@@ -19,6 +23,11 @@ type XVoicesProps = {
   title?: string;
   showTopicTabs?: boolean;
   defaultTopic?: XTopic;
+  /** When set, auto-selects the best X topic for this theme and refreshes on change. */
+  themeId?: string;
+  themeCategory?: string;
+  /** Hide topic tabs and lock to theme-derived topic. */
+  lockTopic?: boolean;
 };
 
 export function XVoices({
@@ -26,24 +35,47 @@ export function XVoices({
   maxPosts = 12,
   title = "X Voices",
   showTopicTabs = false,
-  defaultTopic = "all",
+  defaultTopic = "markets",
+  themeId,
+  themeCategory,
+  lockTopic = false,
 }: XVoicesProps) {
+  const derivedTopic = useMemo(
+    () => (themeId ? resolveXTopicForTheme(themeId, themeCategory) : defaultTopic),
+    [themeId, themeCategory, defaultTopic]
+  );
+
   const [posts, setPosts] = useState<XPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [voices, setVoices] = useState<string[]>([]);
-  const [topic, setTopic] = useState<XTopic>(defaultTopic);
+  const [topic, setTopic] = useState<XTopic>(derivedTopic);
+  const [fetchError, setFetchError] = useState(false);
+
+  useEffect(() => {
+    setTopic(derivedTopic);
+  }, [derivedTopic]);
+
+  useEffect(() => {
+    if (!themeId && !lockTopic) {
+      setTopic(defaultTopic);
+    }
+  }, [defaultTopic, themeId, lockTopic]);
+
+  const activeTopic = lockTopic || themeId ? derivedTopic : topic;
 
   const fetchFeed = useCallback(async () => {
     setLoading(true);
+    setFetchError(false);
     try {
       let user = "";
       try {
         user = localStorage.getItem("oasis-x-username")?.replace("@", "") || "";
       } catch {}
-      const params = new URLSearchParams({ topic });
+      const params = new URLSearchParams({ topic: activeTopic });
       if (user) params.set("user", user);
+      if (themeId) params.set("themeId", themeId);
       const controller = new AbortController();
-      const timeout = window.setTimeout(() => controller.abort(), 8000);
+      const timeout = window.setTimeout(() => controller.abort(), 12000);
       const res = await fetch(`/api/x-feed?${params.toString()}`, {
         cache: "no-store",
         signal: controller.signal,
@@ -51,14 +83,19 @@ export function XVoices({
       window.clearTimeout(timeout);
       if (!res.ok) throw new Error("fetch failed");
       const data = await res.json();
-      const merged: XPost[] = [...(data.posts || [])];
+      const merged: XPost[] = (data.posts || []).filter((p: XPost) =>
+        isXStatusUrl(p.url)
+      );
 
       if (merged.length < 3) {
         const newsRes = await fetch("/api/news?category=Social", { cache: "no-store" });
         if (newsRes.ok) {
           const newsData = await newsRes.json();
           const social = (newsData.signals || [])
-            .filter((s: { isXPost?: boolean; category?: string }) => s.isXPost || s.category === "Social")
+            .filter(
+              (s: { isXPost?: boolean; category?: string; sourceUrl?: string }) =>
+                (s.isXPost || s.category === "Social") && isXStatusUrl(s.sourceUrl || "")
+            )
             .map(
               (s: {
                 id: string;
@@ -74,27 +111,23 @@ export function XVoices({
                 createdAt: s.publishedAt || new Date().toISOString(),
                 url: s.sourceUrl,
               })
-            )
-            .filter((p: XPost) => isXStatusUrl(p.url));
+            );
           const seen = new Set(merged.map((p) => p.id));
-          const withSocial = [...merged];
           for (const p of social) {
-            if (!seen.has(p.id)) withSocial.push(p);
+            if (!seen.has(p.id)) merged.push(p);
           }
-          setPosts(withSocial.slice(0, maxPosts));
-          setVoices(data.voices || []);
-          return;
         }
       }
 
-      setPosts(merged.filter((p) => isXStatusUrl(p.url)).slice(0, maxPosts));
+      setPosts(merged.slice(0, maxPosts));
       setVoices(data.voices || []);
     } catch {
+      setFetchError(true);
       setPosts([]);
     } finally {
       setLoading(false);
     }
-  }, [maxPosts, topic]);
+  }, [maxPosts, activeTopic, themeId]);
 
   useEffect(() => {
     fetchFeed();
@@ -102,7 +135,6 @@ export function XVoices({
     return () => clearInterval(interval);
   }, [fetchFeed]);
 
-  // If Oasis AI updates the X handle, refresh immediately.
   useEffect(() => {
     const onUpdated = () => {
       void fetchFeed();
@@ -112,6 +144,8 @@ export function XVoices({
   }, [fetchFeed]);
 
   const topicTabs = X_TOPIC_VOICES.filter((t) => t.id !== "all");
+  const topicLabel = X_TOPIC_VOICES.find((t) => t.id === activeTopic)?.label;
+  const showTabs = showTopicTabs && !lockTopic && !themeId;
 
   if (compact) {
     return (
@@ -120,19 +154,22 @@ export function XVoices({
           <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-foreground flex items-center gap-1.5">
             <AtSign className="w-3 h-3" /> {title}
           </span>
-          {!loading && (
-            <span className="text-[9px] text-emerald-500/70 uppercase tracking-widest">Live</span>
+          {!loading && posts.length > 0 && (
+            <span className="text-[9px] text-emerald-500/70 uppercase tracking-widest">
+              Live · {topicLabel}
+            </span>
           )}
         </div>
-        {showTopicTabs && (
+        {showTabs && (
           <div className="flex flex-wrap gap-1">
             {[{ id: "all" as XTopic, label: "All" }, ...topicTabs].map((t) => (
               <button
                 key={t.id}
+                type="button"
                 onClick={() => setTopic(t.id)}
                 className={cn(
                   "text-[9px] uppercase tracking-widest px-2 py-0.5 border",
-                  topic === t.id
+                  activeTopic === t.id
                     ? "bg-foreground text-background border-foreground"
                     : "border-border text-muted-foreground"
                 )}
@@ -156,17 +193,28 @@ export function XVoices({
                 href={p.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="block text-xs hover:text-foreground transition-colors"
+                className="block text-xs hover:text-foreground transition-colors group"
               >
                 <span className="text-foreground font-semibold">{p.handle}</span>
-                <span className="text-muted-foreground line-clamp-1"> {p.text}</span>
+                <span className="text-muted-foreground line-clamp-2"> {p.text}</span>
               </a>
             ))}
           </div>
         ) : (
-          <p className="text-xs text-muted-foreground font-light leading-relaxed">
-            No linkable posts right now. Add a handle in Settings or ask Oasis AI to track an account.
-          </p>
+          <div className="space-y-2">
+            <p className="text-xs text-muted-foreground font-light leading-relaxed">
+              {fetchError
+                ? "Feed timed out — retrying shortly."
+                : `No posts loaded for ${topicLabel ?? activeTopic} yet.`}
+            </p>
+            <button
+              type="button"
+              onClick={() => void fetchFeed()}
+              className="text-[9px] uppercase tracking-widest text-muted-foreground hover:text-foreground border border-border px-2 py-1"
+            >
+              Retry
+            </button>
+          </div>
         )}
       </div>
     );
@@ -181,20 +229,21 @@ export function XVoices({
         {!loading && posts.length > 0 && (
           <span className="text-[9px] text-emerald-500/70 uppercase tracking-widest flex items-center gap-1">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            Live
+            Live · {topicLabel}
           </span>
         )}
       </div>
 
-      {showTopicTabs && (
+      {showTabs && (
         <div className="flex flex-wrap gap-2">
           {[{ id: "all" as XTopic, label: "All Voices" }, ...topicTabs].map((t) => (
             <button
               key={t.id}
+              type="button"
               onClick={() => setTopic(t.id)}
               className={cn(
                 "px-3 py-1.5 text-[10px] uppercase tracking-widest font-medium border transition-colors",
-                topic === t.id
+                activeTopic === t.id
                   ? "bg-foreground text-background border-foreground"
                   : "border-border text-muted-foreground hover:border-foreground"
               )}
@@ -207,8 +256,9 @@ export function XVoices({
 
       {voices.length > 0 && (
         <p className="text-[10px] text-muted-foreground">
-          Scanning {voices.length} accounts
-          {topic !== "all" ? ` · ${X_TOPIC_VOICES.find((t) => t.id === topic)?.label}` : ""}
+          Scanning @{voices.slice(0, 6).join(", @")}
+          {voices.length > 6 ? ` +${voices.length - 6} more` : ""}
+          {activeTopic !== "all" ? ` · ${topicLabel}` : ""}
         </p>
       )}
 
@@ -237,25 +287,30 @@ export function XVoices({
                   {formatTime(p.createdAt)}
                 </span>
               </div>
-              <p className="text-sm text-muted-foreground font-light leading-relaxed line-clamp-2 group-hover:text-foreground transition-colors">
+              <p className="text-sm text-muted-foreground font-light leading-relaxed line-clamp-3 group-hover:text-foreground transition-colors">
                 {p.text}
               </p>
-              <p className="text-[10px] text-muted-foreground/80 mt-2 uppercase tracking-widest">
-                via x {p.handle}
+              <p className="text-[10px] text-muted-foreground/80 mt-2 uppercase tracking-widest flex items-center gap-1">
+                Open tweet
+                <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
               </p>
-              <ExternalLink className="w-3 h-3 mt-2 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
             </motion.a>
           ))}
         </div>
       ) : (
-        <div className="border border-border bg-card/40 p-6 text-center space-y-2">
+        <div className="border border-border bg-card/40 p-6 text-center space-y-3">
           <p className="text-sm text-muted-foreground font-light leading-relaxed max-w-md mx-auto">
-            No posts with direct status links loaded for this topic yet. Oasis only surfaces posts
-            that link to a specific tweet — not profile pages.
+            {fetchError
+              ? "Could not reach the X feed — check your connection and retry."
+              : `No linkable posts for ${topicLabel ?? activeTopic} right now.`}
           </p>
-          <p className="text-[10px] uppercase tracking-widest text-muted-foreground">
-            Tip: set TWITTER_BEARER_TOKEN for live API pulls, or add your handle in Settings.
-          </p>
+          <button
+            type="button"
+            onClick={() => void fetchFeed()}
+            className="text-[10px] uppercase tracking-widest border border-border px-4 py-2 hover:border-foreground"
+          >
+            Retry feed
+          </button>
         </div>
       )}
     </section>

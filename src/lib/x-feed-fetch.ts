@@ -3,6 +3,21 @@ import { getHandlesForTopic, type XTopic } from "@/lib/x-voices-config";
 import { parsePubDate, toIsoOrNull } from "@/lib/publish-time";
 import { compactXPostText, resolveXHandle, isXStatusUrl } from "@/lib/x-signal-format";
 import { resolveXHandleAlias } from "@/lib/x-handle-aliases";
+import { getFallbackXPosts } from "@/lib/x-fallback-posts";
+
+const SYNDICATION_CACHE = new Map<string, { posts: XPost[]; expires: number }>();
+const SYNDICATION_TTL_MS = 6 * 60_000;
+const SYNDICATION_STALE_MS = 45 * 60_000;
+const SYNDICATION_MIN_GAP_MS = 900;
+
+let lastSyndicationFetchAt = 0;
+
+async function throttleSyndication(): Promise<void> {
+  const now = Date.now();
+  const wait = lastSyndicationFetchAt + SYNDICATION_MIN_GAP_MS - now;
+  if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+  lastSyndicationFetchAt = Date.now();
+}
 
 const TOPIC_NEWS_QUERY: Record<XTopic, string> = {
   all: "(markets OR stocks OR economy OR fed OR oil OR AI OR crypto)",
@@ -28,6 +43,106 @@ function extractTag(block: string, tag: string): string {
   if (cdata) return cdata[1].trim();
   const m = new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, "i").exec(block);
   return m ? m[1].trim() : "";
+}
+
+/** Public syndication timeline — returns real /status/ links without API keys. */
+async function fetchXViaSyndication(username: string): Promise<XPost[]> {
+  const handle = resolveXHandleAlias(username);
+  const now = Date.now();
+  const cached = SYNDICATION_CACHE.get(handle);
+  if (cached && cached.expires > now) return cached.posts;
+
+  const url = `https://syndication.twitter.com/srv/timeline-profile/screen-name/${encodeURIComponent(handle)}`;
+
+  try {
+    await throttleSyndication();
+    const res = await fetch(url, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        Accept: "text/html,application/xhtml+xml",
+      },
+      cache: "no-store",
+    });
+
+    if (!res.ok || res.status === 429) {
+      if (cached && cached.expires > now - SYNDICATION_STALE_MS) return cached.posts;
+      return [];
+    }
+
+    const html = await res.text();
+    if (html.length < 500) {
+      if (cached && cached.expires > now - SYNDICATION_STALE_MS) return cached.posts;
+      return [];
+    }
+    const match = html.match(
+      /<script id="__NEXT_DATA__" type="application\/json">([\s\S]+?)<\/script>/
+    );
+    if (!match?.[1]) return [];
+
+    const data = JSON.parse(match[1]) as {
+      props?: {
+        pageProps?: {
+          timeline?: {
+            entries?: Array<{
+              type?: string;
+              entry_id?: string;
+              content?: {
+                tweet?: {
+                  id_str?: string;
+                  conversation_id_str?: string;
+                  full_text?: string;
+                  text?: string;
+                  created_at?: string;
+                  favorite_count?: number;
+                  user?: { screen_name?: string };
+                };
+              };
+            }>;
+          };
+        };
+      };
+    };
+
+    const entries = data.props?.pageProps?.timeline?.entries ?? [];
+    const posts: XPost[] = [];
+
+    for (const entry of entries) {
+      if (entry.type !== "tweet") continue;
+      const tweet = entry.content?.tweet;
+      if (!tweet) continue;
+
+      const idStr =
+        tweet.id_str ||
+        tweet.conversation_id_str ||
+        entry.entry_id?.replace(/^tweet-/, "");
+      const screenName = tweet.user?.screen_name || handle;
+      const text = tweet.full_text || tweet.text || "";
+      if (!idStr || !text.trim()) continue;
+
+      posts.push({
+        id: idStr,
+        text: compactXPostText(text, 140),
+        author: screenName,
+        handle: `@${screenName}`,
+        createdAt:
+          toIsoOrNull(parsePubDate(tweet.created_at ?? "")) ||
+          new Date().toISOString(),
+        url: `https://x.com/${screenName}/status/${idStr}`,
+        likes: tweet.favorite_count,
+      });
+      if (posts.length >= 5) break;
+    }
+
+    const valid = posts.filter((p) => isXStatusUrl(p.url));
+    if (valid.length > 0) {
+      SYNDICATION_CACHE.set(handle, { posts: valid, expires: now + SYNDICATION_TTL_MS });
+    }
+    return valid;
+  } catch {
+    if (cached && cached.expires > now - SYNDICATION_STALE_MS) return cached.posts;
+    return [];
+  }
 }
 
 async function fetchTwitterApiV2(
@@ -137,6 +252,37 @@ function scoreXPost(text: string): number {
   return score;
 }
 
+async function fetchPostsForAccount(
+  rawAccount: string,
+  topic: XTopic,
+  bearer?: string
+): Promise<XPost[]> {
+  const account = resolveXHandleAlias(rawAccount);
+
+  const syndicationPosts = await fetchXViaSyndication(account);
+  if (syndicationPosts.length > 0) return syndicationPosts.slice(0, 3);
+
+  if (bearer) {
+    const apiPosts = await fetchTwitterApiV2(account, bearer);
+    if (apiPosts.length > 0) return apiPosts.slice(0, 3);
+  }
+
+  const newsPosts = await fetchXViaGoogleNews(account, topic);
+  return newsPosts.slice(0, 2);
+}
+
+function matchesTopic(text: string, topic: XTopic): boolean {
+  if (topic === "all") return true;
+  const query = TOPIC_NEWS_QUERY[topic] ?? "";
+  const terms = query
+    .replace(/[()]/g, " ")
+    .split(/\s+OR\s+/i)
+    .map((t) => t.trim().toLowerCase())
+    .filter(Boolean);
+  const lower = text.toLowerCase();
+  return terms.some((term) => lower.includes(term));
+}
+
 export async function fetchXPosts(
   topic: XTopic = "markets",
   userHandle?: string,
@@ -146,25 +292,20 @@ export async function fetchXPosts(
   const accounts = getHandlesForTopic(topic, userHandle);
   const allPosts: XPost[] = [];
 
-  for (const rawAccount of accounts) {
-    const account = resolveXHandleAlias(rawAccount);
-    let posts: XPost[] = [];
-    if (bearer) {
-      posts = await fetchTwitterApiV2(account, bearer);
-    }
-    if (posts.length === 0) {
-      posts = await fetchXViaGoogleNews(account, topic);
-    }
-    allPosts.push(...posts.slice(0, 2));
+  for (const account of accounts.slice(0, 3)) {
+    const posts = await fetchPostsForAccount(account, topic, bearer);
+    allPosts.push(...posts);
     if (allPosts.length >= maxPosts * 2) break;
   }
 
   allPosts.sort((a, b) => {
+    const aTopic = matchesTopic(a.text, topic) ? 3 : 0;
+    const bTopic = matchesTopic(b.text, topic) ? 3 : 0;
     const aT = new Date(a.createdAt).getTime();
     const bT = new Date(b.createdAt).getTime();
     if (bT !== aT) return bT - aT;
-    const aScore = scoreXPost(a.text) + (a.likes || 0) * 0.02;
-    const bScore = scoreXPost(b.text) + (b.likes || 0) * 0.02;
+    const aScore = aTopic + scoreXPost(a.text) + (a.likes || 0) * 0.02;
+    const bScore = bTopic + scoreXPost(b.text) + (b.likes || 0) * 0.02;
     return bScore - aScore;
   });
 
@@ -176,5 +317,19 @@ export async function fetchXPosts(
     return true;
   });
 
-  return deduped.filter((p) => isXStatusUrl(p.url)).slice(0, maxPosts);
+  const result = deduped.filter((p) => isXStatusUrl(p.url)).slice(0, maxPosts);
+
+  if (result.length < 4) {
+    const fallbacks = getFallbackXPosts(topic, maxPosts);
+    const urls = new Set(result.map((p) => p.url));
+    for (const p of fallbacks) {
+      if (!urls.has(p.url)) {
+        result.push(p);
+        urls.add(p.url);
+      }
+      if (result.length >= maxPosts) break;
+    }
+  }
+
+  return result;
 }

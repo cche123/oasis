@@ -7,6 +7,7 @@ import { buildNewsQueryParams } from "@/lib/news-params";
 import { XVoices } from "@/components/x-voices";
 import { buildInsightScaffold } from "@/lib/insight-scaffold";
 import { cachedFetchJson, readCachedJson } from "@/lib/client-fetch-cache";
+import type { XTopic } from "@/lib/x-voices-config";
 
 type LiveSignal = {
   id: string;
@@ -21,6 +22,21 @@ type LiveSignal = {
 };
 
 const CATEGORIES = ["All Signals", "Markets", "M&A", "Macro", "Geopolitics", "Energy"];
+
+function categoryToXTopic(cat: string): XTopic {
+  switch (cat) {
+    case "M&A":
+      return "ma";
+    case "Macro":
+    case "Geopolitics":
+    case "Energy":
+      return "macro";
+    case "Markets":
+      return "markets";
+    default:
+      return "all";
+  }
+}
 
 export default function SignalsPage() {
   const { user } = useUser();
@@ -312,7 +328,11 @@ export default function SignalsPage() {
       )}
 
       <div className="mt-16">
-        <XVoices title="X Market Voices" showTopicTabs />
+        <XVoices
+          title={`X Market Voices · ${activeCategory}`}
+          showTopicTabs
+          defaultTopic={categoryToXTopic(activeCategory)}
+        />
       </div>
 
     </div>

@@ -194,8 +194,9 @@ export default function ThemeDetailPage() {
           <XVoices
             compact
             title="X signals for this theme"
-            defaultTopic={id.includes("roll-up") || id.includes("private") ? "vc" : "markets"}
-            showTopicTabs
+            themeId={id}
+            themeCategory={category}
+            lockTopic
           />
         </div>
 

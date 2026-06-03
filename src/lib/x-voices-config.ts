@@ -141,3 +141,84 @@ export function getHandlesForTopic(topic: XTopic, userHandle?: string): string[]
 
   return handles.slice(0, 12);
 }
+
+/** Map a theme slug or title to the most relevant X voice topic. */
+export function resolveXTopicForTheme(themeId: string, category?: string): XTopic {
+  const id = themeId.toLowerCase();
+
+  if (id.includes("crypto") || id.includes("digital-asset")) return "crypto";
+  if (
+    id.includes("roll-up") ||
+    id.includes("private-equity") ||
+    id.includes("venture") ||
+    id.includes("sovereign-wealth") ||
+    id.includes("middle-east-sovereign")
+  ) {
+    return "vc";
+  }
+  if (id.includes("m-a") || id.includes("ma-activity")) return "ma";
+  if (
+    id.includes("semiconductor") ||
+    id.includes("data-center") ||
+    id.includes("ai-enabled") ||
+    id.includes("oceanic")
+  ) {
+    return "ai";
+  }
+  if (
+    id.includes("defense") ||
+    id.includes("geopolit") ||
+    id.includes("glp") ||
+    id.includes("energy") ||
+    id.includes("gold") ||
+    id.includes("macro") ||
+    id.includes("pharma")
+  ) {
+    return "macro";
+  }
+  if (
+    id.includes("founder") ||
+    id.includes("ceo") ||
+    category === "Consumer"
+  ) {
+    return "founders";
+  }
+
+  if (category === "Technology") return "ai";
+  if (category === "Private Markets") return "vc";
+  if (category === "Geopolitics" || category === "Energy") return "macro";
+  if (category === "Financial Services") return "macro";
+  if (category === "Healthcare") return "macro";
+
+  return "markets";
+}
+
+/** Map explore category pills to X topic tabs. */
+export function resolveXTopicForCategory(category: string): XTopic {
+  switch (category) {
+    case "Technology":
+      return "ai";
+    case "Private Markets":
+      return "vc";
+    case "Geopolitics":
+    case "Energy":
+    case "Financial Services":
+      return "macro";
+    case "Healthcare":
+    case "Consumer":
+    case "Industrials":
+    case "Media":
+    case "International Markets":
+      return "markets";
+    default:
+      return "all";
+  }
+}
+
+/** Map onboarding interest label to X topic. */
+export function resolveXTopicForInterest(interest: string): XTopic {
+  return resolveXTopicForTheme(
+    interest.toLowerCase().replace(/\s+/g, "-"),
+    undefined
+  );
+}

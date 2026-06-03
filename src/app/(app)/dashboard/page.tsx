@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Search, ArrowRight, Rss, ExternalLink } from "lucide-react";
 import Link from "next/link";
 import { motion, Variants } from "framer-motion";
@@ -9,6 +9,7 @@ import { mockThemes } from "@/lib/data";
 import { buildNewsQueryParams } from "@/lib/news-params";
 import { Sparkles, MapPin, Zap } from "lucide-react";
 import { XVoices } from "@/components/x-voices";
+import { resolveXTopicForInterest } from "@/lib/x-voices-config";
 import { LocationBadge } from "@/components/location-display";
 import { InternationalMarketPicker } from "@/components/international-market-picker";
 import type { PulseNarrative } from "@/lib/pulse-engine";
@@ -83,6 +84,11 @@ export default function DashboardPage() {
   const regionLabel = user.resolvedLocation?.valid
     ? user.resolvedLocation.displayName
     : user.location || "Global (US default)";
+
+  const dashboardXTopic = useMemo(
+    () => (user.interests[0] ? resolveXTopicForInterest(user.interests[0]) : "markets"),
+    [user.interests]
+  );
 
   const activeThemes =
     user.interests.length > 0
@@ -459,13 +465,13 @@ export default function DashboardPage() {
             viewport={{ once: true, margin: "-50px" }}
             variants={containerVars}
           >
-            <XVoices title="X Market Voices" showTopicTabs />
+            <XVoices title="X Market Voices" showTopicTabs defaultTopic={dashboardXTopic} />
           </motion.section>
         </div>
 
         <div className="lg:col-span-4 space-y-16">
           <motion.section variants={containerVars} initial="hidden" whileInView="show" viewport={{ once: true }}>
-            <XVoices compact maxPosts={8} title="X Signals" showTopicTabs />
+            <XVoices compact maxPosts={8} title="X Signals" showTopicTabs defaultTopic={dashboardXTopic} />
           </motion.section>
           {/* Live Signals Feed */}
           <motion.section

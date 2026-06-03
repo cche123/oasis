@@ -480,6 +480,84 @@ const PROFILES: Record<string, SavedThemeProfile> = {
     keywords: ["subsea", "maritime", "ocean", "cable", "naval", "offshore"],
   }),
 
+  "middle-east-sovereign-wealth": profile({
+    id: "middle-east-sovereign-wealth",
+    title: "Middle Eastern Sovereign Wealth in Tech",
+    subtitle: "Mubadala and PIF aggressively moving into AI infrastructure.",
+    category: "Private Markets",
+    thesis:
+      "Gulf SWFs deploy oil surpluses into AI, sports, and global tech — their deal flow sets private market pricing power.",
+    mechanism:
+      "Oil revenue → SWF mandate → direct/co-invest → venture/LBO activity → public comp re-rating.",
+    whatToWatch: [
+      "PIF/Mubadala mega-deal announcements in AI and sports",
+      "US/EU scrutiny of Gulf tech investments",
+      "OPEC policy and Brent — drives deployment pace",
+    ],
+    risks: ["Oil price collapse pauses deployment", "Geopolitical limits on target sectors"],
+    relatedTickers: ["XOM", "CVX", "BABA", "UBER", "MSFT"],
+    features: [
+      { label: "Private Markets", href: "/private-markets", why: "SWF and mega-deal tracking" },
+      { label: "Pulse", href: "/pulse", why: "Sovereign wealth narratives" },
+      { label: "Wave", href: "/wave", why: "Middle East geopolitical headlines" },
+    ],
+    keywords: ["sovereign", "pif", "mubadala", "saudi", "uae", "wealth fund", "gulf"],
+    interestScore: 4,
+    lastUpdated: "Live",
+  }),
+
+  "european-defense-procurement": profile({
+    id: "european-defense-procurement",
+    title: "European Defense Procurement",
+    subtitle: "NATO budget increases driving European aerospace consolidation.",
+    category: "Geopolitics",
+    thesis:
+      "Europe is re-arming — defense budgets rising, primes consolidating, and startups winning OTA contracts.",
+    mechanism:
+      "NATO spend targets → national budgets → contract awards → backlog growth for EU A&D.",
+    whatToWatch: [
+      "EU/NATO supplemental defense bills",
+      "Rheinmetall, BAE, Thales contract wins",
+      "Ukraine aid packages accelerating procurement",
+    ],
+    risks: ["Budget delays from political gridlock", "Export control friction"],
+    relatedTickers: ["RHM.DE", "BA", "LMT", "RTX", "NOC"],
+    features: [
+      { label: "Wave", href: "/wave", why: "Conflict → defense equity mapping" },
+      { label: "Signals", href: "/signals", why: "Geopolitics feed" },
+      { label: "Public Markets", href: "/public-markets", why: "A&D quotes" },
+    ],
+    keywords: ["nato", "europe", "defense", "procurement", "rheinmetall", "ukraine"],
+    interestScore: 3,
+    lastUpdated: "Live",
+  }),
+
+  "nearshoring-mexico": profile({
+    id: "nearshoring-mexico",
+    title: "Nearshoring to Mexico",
+    subtitle: "Supply chains shifting away from China to North America.",
+    category: "Industrials",
+    thesis:
+      "US-China decoupling pushes manufacturing to Mexico — industrial real estate, logistics, and autos benefit.",
+    mechanism:
+      "Tariff/policy headline → capex relocation → border industrial parks → freight volumes.",
+    whatToWatch: [
+      "USMCA and tariff announcements",
+      "Mexico manufacturing PMI and FDI data",
+      "Auto OEM plant announcements in Monterrey/Bajío",
+    ],
+    risks: ["Border infrastructure bottlenecks", "Policy reversal on trade"],
+    relatedTickers: ["FDX", "UPS", "TM", "GM", "EWW"],
+    features: [
+      { label: "Wave", href: "/wave", why: "Tariff/trade headline mapping" },
+      { label: "Pulse", href: "/pulse", why: "Supply chain narratives" },
+      { label: "Public Markets", href: "/public-markets", why: "Logistics and auto quotes" },
+    ],
+    keywords: ["nearshoring", "mexico", "supply chain", "usmca", "tariff", "manufacturing"],
+    interestScore: 2,
+    lastUpdated: "Live",
+  }),
+
   "supply-chain-shift": profile({
     id: "supply-chain-shift",
     title: "Supply Chain Shift",

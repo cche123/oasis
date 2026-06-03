@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
+import { XVoices } from "@/components/x-voices";
 
 type LiveSignal = {
   id: string;
@@ -495,6 +496,14 @@ function TopicDetailPanel({
           </p>
         )}
       </div>
+
+      <XVoices
+        title={`X voices · ${profile.title}`}
+        themeId={profile.id}
+        themeCategory={profile.category}
+        lockTopic
+        maxPosts={8}
+      />
     </motion.div>
   );
 }
